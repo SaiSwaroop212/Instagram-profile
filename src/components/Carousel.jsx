@@ -14,9 +14,19 @@ export function Carousel({
   const [currentIndex, setCurrentIndex] = useState(0);
   const commentInputRef = useRef(null);
 
+  if (!carouselPosts || carouselPosts.length === 0) {
+    return null;
+  }
+
   const totalPosts = carouselPosts.length;
+
+  // Current image changes when we move to next/previous
   const currentPost =
     carouselPosts[currentIndex] || carouselPosts[0];
+
+  // ONE POST'S DETAILS
+  // These details stay the same for all 3 images
+  const postDetails = carouselPosts[0];
 
   // Keyboard navigation
   useEffect(() => {
@@ -41,11 +51,7 @@ export function Carousel({
     };
   }, [totalPosts, onClose]);
 
-  if (!carouselPosts || carouselPosts.length === 0) {
-    return null;
-  }
-
-  const isBookmarked = Boolean(bookmarks[currentPost.id]);
+  const isBookmarked = Boolean(bookmarks[postDetails.id]);
 
   const handlePrev = (e) => {
     if (e) e.stopPropagation();
@@ -69,9 +75,10 @@ export function Carousel({
     onToggleLike();
   };
 
+  // Bookmark belongs to the ONE POST
   const handleBookmark = (e) => {
     e.stopPropagation();
-    onToggleBookmark(currentPost.id);
+    onToggleBookmark(postDetails.id);
   };
 
   const handleCommentIconClick = (e) => {
@@ -84,7 +91,7 @@ export function Carousel({
 
   const handleShare = (e) => {
     e.stopPropagation();
-    console.log("Share clicked for post:", currentPost.id);
+    console.log("Share clicked for post:", postDetails.id);
   };
 
   return (
@@ -101,27 +108,30 @@ export function Carousel({
       >
         <div className="carousel-post">
 
-          {/* 1. Header */}
+          {/* 1. HEADER */}
+          {/* Same header for all 3 images */}
           <header className="carousel-header">
+
             <div className="carousel-user-info">
 
               <img
-                src={currentPost.profileImage}
-                alt={currentPost.username}
+                src={postDetails.profileImage}
+                alt={postDetails.username}
                 className="carousel-profile-img"
               />
 
               <div className="carousel-user-details">
 
                 <span className="carousel-username">
-                  {currentPost.username}
+                  {postDetails.username}
                 </span>
 
                 <span className="carousel-category">
-                  {currentPost.category}
+                  {postDetails.category}
                 </span>
 
               </div>
+
             </div>
 
             <button
@@ -132,16 +142,19 @@ export function Carousel({
             >
               ✕
             </button>
+
           </header>
 
-          {/* 2. Image section */}
+
+          {/* 2. IMAGE SECTION */}
+          {/* ONLY THE IMAGE changes */}
           <div className="carousel-image-section">
 
             <button
               type="button"
               className="carousel-prev"
               onClick={handlePrev}
-              aria-label="Previous post"
+              aria-label="Previous image"
             >
               ‹
             </button>
@@ -152,14 +165,14 @@ export function Carousel({
                 className="carousel-image"
                 src={currentPost.imageUrl}
                 alt={
-                  currentPost.caption ||
-                  currentPost.title
+                  postDetails.caption ||
+                  postDetails.title
                 }
               />
 
               <div
                 className="carousel-counter"
-                aria-label={`Post ${
+                aria-label={`Image ${
                   currentIndex + 1
                 } of ${totalPosts}`}
               >
@@ -172,19 +185,20 @@ export function Carousel({
               type="button"
               className="carousel-next"
               onClick={handleNext}
-              aria-label="Next post"
+              aria-label="Next image"
             >
               ›
             </button>
 
           </div>
 
-          {/* 3. Actions */}
+
+          {/* 3. ACTIONS */}
           <div className="carousel-actions">
 
             <div className="carousel-actions-left">
 
-              {/* ONE SHARED LIKE FOR ALL 3 POSTS */}
+              {/* ONE SHARED LIKE FOR ALL 3 IMAGES */}
               <button
                 type="button"
                 className={`carousel-like ${
@@ -198,6 +212,7 @@ export function Carousel({
                 {isLiked ? "♥" : "♡"}
               </button>
 
+
               <button
                 type="button"
                 className="carousel-comment"
@@ -206,6 +221,7 @@ export function Carousel({
               >
                 💬
               </button>
+
 
               <button
                 type="button"
@@ -229,6 +245,7 @@ export function Carousel({
                     x2="11"
                     y2="13"
                   />
+
                   <polygon
                     points="22 2 15 22 11 13 2 9 22 2"
                   />
@@ -237,8 +254,10 @@ export function Carousel({
 
             </div>
 
+
             <div className="carousel-actions-right">
 
+              {/* ONE BOOKMARK FOR THE WHOLE POST */}
               <button
                 type="button"
                 className={`carousel-bookmark ${
@@ -275,7 +294,8 @@ export function Carousel({
 
           </div>
 
-          {/* 4. Carousel dots */}
+
+          {/* 4. CAROUSEL DOTS */}
           <div
             className="carousel-dots"
             role="tablist"
@@ -296,7 +316,7 @@ export function Carousel({
                   e.stopPropagation();
                   setCurrentIndex(index);
                 }}
-                aria-label={`Go to slide ${
+                aria-label={`Go to image ${
                   index + 1
                 }`}
                 role="tab"
@@ -309,40 +329,45 @@ export function Carousel({
 
           </div>
 
-          {/* 5. Post information */}
+
+          {/* 5. POST INFORMATION */}
+          {/* SAME INFORMATION FOR ALL 3 IMAGES */}
           <div className="carousel-post-info">
 
             <div className="carousel-caption-row">
 
               <span className="carousel-caption-username">
-                {currentPost.username}
+                {postDetails.username}
               </span>
 
               <span className="carousel-caption-text">
-                {currentPost.caption}
+                {postDetails.caption}
               </span>
 
             </div>
 
-            {currentPost.hashtags && (
+
+            {postDetails.hashtags && (
               <p className="carousel-hashtags">
-                {currentPost.hashtags}
+                {postDetails.hashtags}
               </p>
             )}
 
+
             <time className="carousel-timestamp">
-              {currentPost.timestamp}
+              {postDetails.timestamp}
             </time>
 
           </div>
 
-          {/* 6. Comment input */}
+
+          {/* 6. COMMENT INPUT */}
           <CommentBox
             inputRef={commentInputRef}
             onAddComment={(text) =>
               onAddComment &&
               onAddComment(
-                currentPost.id,
+                postDetails.id,
                 text
               )
             }
