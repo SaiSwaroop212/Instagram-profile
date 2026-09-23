@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import CommentBox from "./CommentBox";
+import { fetchReplies, followUser, unfollowUser, checkIsFollowing } from "../services/api";
 
 export function Carousel({
   carouselPosts,
@@ -12,6 +13,10 @@ export function Carousel({
   onToggleBookmark
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [dbReplies, setDbReplies] = useState([]);
+  const [loadingReplies, setLoadingReplies] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
   const commentInputRef = useRef(null);
 
   if (!carouselPosts || carouselPosts.length === 0) {
@@ -27,6 +32,69 @@ export function Carousel({
   // ONE POST'S DETAILS
   // These details stay the same for all 3 images
   const postDetails = carouselPosts[0];
+
+  // Load existing replies from PostgreSQL
+  useEffect(() => {
+    if (!postDetails?.id) return;
+    let isCancelled = false;
+    setLoadingReplies(true);
+
+    fetchReplies(postDetails.id)
+      .then((res) => {
+        if (!isCancelled && res?.items) {
+          setDbReplies(res.items);
+        }
+      })
+      .catch((err) => console.error("Error loading replies:", err))
+      .finally(() => {
+        if (!isCancelled) setLoadingReplies(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [postDetails?.id]);
+
+  // Load follow status for this post's author from PostgreSQL
+  useEffect(() => {
+    if (!postDetails?.username || postDetails.username === "asha") return;
+    let isCancelled = false;
+
+    checkIsFollowing(postDetails.username)
+      .then((res) => {
+        if (!isCancelled) {
+          setIsFollowing(Boolean(res?.following));
+        }
+      })
+      .catch((err) => console.error("Error checking follow status:", err));
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [postDetails?.username]);
+
+  // Toggle follow/unfollow in PostgreSQL
+  const handleToggleFollow = async (e) => {
+    if (e) e.stopPropagation();
+    if (followLoading || !postDetails?.username || postDetails.username === "asha") return;
+
+    const nextState = !isFollowing;
+    setIsFollowing(nextState);
+    setFollowLoading(true);
+
+    try {
+      if (nextState) {
+        await followUser(postDetails.username);
+      } else {
+        await unfollowUser(postDetails.username);
+      }
+    } catch (err) {
+      console.error("Failed to update follow state:", err);
+      setIsFollowing(!nextState); // Rollback on failure
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   // Keyboard navigation
   useEffect(() => {
@@ -118,13 +186,36 @@ export function Carousel({
                 src={postDetails.profileImage}
                 alt={postDetails.username}
                 className="carousel-profile-img"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = "https://picsum.photos/seed/user50/150/150";
+                }}
               />
 
               <div className="carousel-user-details">
 
-                <span className="carousel-username">
-                  {postDetails.username}
-                </span>
+                <div className="carousel-user-header-row">
+                  <span className="carousel-username">
+                    {postDetails.username}
+                  </span>
+
+                  {postDetails.username !== "asha" && (
+                    <>
+                      <span className="carousel-user-dot">•</span>
+                      <button
+                        type="button"
+                        className={`carousel-follow-btn ${
+                          isFollowing ? "following" : ""
+                        }`}
+                        onClick={handleToggleFollow}
+                        disabled={followLoading}
+                        aria-label={isFollowing ? "Unfollow user" : "Follow user"}
+                      >
+                        {isFollowing ? "Following" : "Follow"}
+                      </button>
+                    </>
+                  )}
+                </div>
 
                 <span className="carousel-category">
                   {postDetails.category}
@@ -168,6 +259,11 @@ export function Carousel({
                   postDetails.caption ||
                   postDetails.title
                 }
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  const seed = (currentPost.id || "").replace(/[^0-9]/g, "").slice(-4) || "200";
+                  e.currentTarget.src = `https://picsum.photos/seed/post${seed}/800/800`;
+                }}
               />
 
               <div
@@ -361,7 +457,71 @@ export function Carousel({
           </div>
 
 
-          {/* 6. COMMENT INPUT */}
+          {/* 6. COMMENTS LIST */}
+          <div className="carousel-comments-list">
+            {loadingReplies && dbReplies.length === 0 && (
+              <div className="carousel-no-comments">Loading comments...</div>
+            )}
+
+            {/* Existing replies from PostgreSQL */}
+            {dbReplies.map((reply) => (
+              <div key={reply.id} className="carousel-comment-item">
+                <img
+                  src={reply.profileImage}
+                  alt={reply.username}
+                  className="carousel-comment-avatar"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "https://picsum.photos/seed/user50/50/50";
+                  }}
+                />
+                <div className="carousel-comment-content">
+                  <span className="carousel-comment-username">
+                    {reply.username}
+                  </span>
+                  <span className="carousel-comment-text">
+                    {reply.caption}
+                  </span>
+                  <div className="carousel-comment-meta">
+                    {reply.timestamp || "Recently"}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Local comments posted in this session */}
+            {(comments[postDetails.id] || []).map((text, idx) => (
+              <div key={`local-${idx}`} className="carousel-comment-item">
+                <img
+                  src="https://picsum.photos/seed/you50/50/50"
+                  alt="You"
+                  className="carousel-comment-avatar"
+                />
+                <div className="carousel-comment-content">
+                  <span className="carousel-comment-username">
+                    you
+                  </span>
+                  <span className="carousel-comment-text">
+                    {text}
+                  </span>
+                  <div className="carousel-comment-meta">
+                    Just now
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {!loadingReplies &&
+              dbReplies.length === 0 &&
+              (!comments[postDetails.id] || comments[postDetails.id].length === 0) && (
+                <div className="carousel-no-comments">
+                  No comments yet. Be the first to comment!
+                </div>
+              )}
+          </div>
+
+
+          {/* 7. COMMENT INPUT */}
           <CommentBox
             inputRef={commentInputRef}
             onAddComment={(text) =>

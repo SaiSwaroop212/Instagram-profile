@@ -11,3 +11,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+pgdata/
+postgres.log
+Backend/node_modules/
+Backend/dist/
+Backend/.env
+*.tsbuildinfo

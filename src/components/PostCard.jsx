@@ -21,6 +21,10 @@ export function PostCard({ post, onClick }) {
         src={post.imageUrl}
         alt={post.caption || post.title}
         loading="lazy"
+        onError={(e) => {
+          e.currentTarget.onerror = null;
+          e.currentTarget.src = `https://picsum.photos/seed/post${(post.id || '').slice(-4)}/600/600`;
+        }}
       />
     </article>
   );

@@ -1,17 +1,28 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
+
 import Header from "./components/Header";
 import PostGrid from "./components/PostGrid";
 import Carousel from "./components/Carousel";
-import { fetchPosts } from "./services/api";
+import { fetchPosts, createReply } from "./services/api";
 import { useDebounce } from "./hooks/useDebounce";
 import { useInfiniteScroll } from "./hooks/useInfiniteScroll";
 
 export function App() {
   const [posts, setPosts] = useState([]);
-  const [page, setPage] = useState(1);
+
+  // Changed: page → nextCursor
+  const [nextCursor, setNextCursor] = useState(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
   const debouncedSearch = useDebounce(searchTerm, 500);
 
   // Carousel state
@@ -26,32 +37,40 @@ export function App() {
 
   const sentinelRef = useRef(null);
   const isFetchingRef = useRef(false);
+  const nextCursorRef = useRef(null);
 
-  // Load next page of posts from API (9 posts per request)
-  const loadPosts = useCallback(async (pageNumber) => {
+  // Load posts using cursor pagination
+  const loadPosts = useCallback(async (cursor = null) => {
     if (isFetchingRef.current) return;
 
     isFetchingRef.current = true;
     setIsLoading(true);
 
     try {
-      const newPosts = await fetchPosts(pageNumber, 9);
+      const result = await fetchPosts(cursor, 10);
 
-      if (!newPosts || newPosts.length === 0) {
+      if (!result || result.items.length === 0) {
         setHasMore(false);
+        nextCursorRef.current = null;
         return;
       }
 
       setPosts((prevPosts) => {
         const existingIds = new Set(prevPosts.map((p) => p.id));
-        const filteredNew = newPosts.filter(
+
+        const filteredNew = result.items.filter(
           (p) => !existingIds.has(p.id)
         );
 
         return [...prevPosts, ...filteredNew];
       });
 
-      setPage(pageNumber + 1);
+      setNextCursor(result.nextCursor);
+      nextCursorRef.current = result.nextCursor;
+
+      if (!result.nextCursor || result.hasMore === false) {
+        setHasMore(false);
+      }
     } catch (err) {
       console.error("Error fetching posts:", err);
     } finally {
@@ -62,18 +81,21 @@ export function App() {
 
   // Initial load
   useEffect(() => {
-    loadPosts(1);
+    loadPosts(null);
+  }, [loadPosts]);
+
+  // Handle loading next page from scroll
+  const handleLoadMore = useCallback(() => {
+    if (!isFetchingRef.current && nextCursorRef.current) {
+      loadPosts(nextCursorRef.current);
+    }
   }, [loadPosts]);
 
   // Infinite scroll
   useInfiniteScroll(sentinelRef, {
     hasMore: hasMore && !debouncedSearch.trim(),
     isLoading,
-    onLoadMore: () => {
-      if (!isLoading && hasMore) {
-        loadPosts(page);
-      }
-    }
+    onLoadMore: handleLoadMore,
   });
 
   // Filter posts based on search
@@ -151,7 +173,7 @@ export function App() {
 
     setCarouselLikes((prev) => ({
       ...prev,
-      [carouselKey]: !prev[carouselKey]
+      [carouselKey]: !prev[carouselKey],
     }));
   }, [carouselPosts, getCarouselKey]);
 
@@ -159,20 +181,27 @@ export function App() {
   const handleToggleBookmark = useCallback((postId) => {
     setBookmarks((prev) => ({
       ...prev,
-      [postId]: !prev[postId]
+      [postId]: !prev[postId],
     }));
   }, []);
 
   // Per-post comment add
-  const handleAddComment = useCallback((postId, commentText) => {
+  const handleAddComment = useCallback(async (postId, commentText) => {
     setComments((prev) => ({
       ...prev,
-      [postId]: [...(prev[postId] || []), commentText]
+      [postId]: [...(prev[postId] || []), commentText],
     }));
+
+    try {
+      await createReply(postId, commentText);
+    } catch (err) {
+      console.warn("Could not save comment to backend:", err);
+    }
   }, []);
 
   // Current carousel Like state
   const currentCarouselKey = getCarouselKey(carouselPosts);
+
   const isCarouselLiked = Boolean(
     carouselLikes[currentCarouselKey]
   );
@@ -215,4 +244,3 @@ export function App() {
 }
 
 export default App;
-

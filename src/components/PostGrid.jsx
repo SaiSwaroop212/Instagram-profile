@@ -36,6 +36,7 @@ export function PostGrid({
       <div
         id="scroll-sentinel"
         ref={sentinelRef}
+        style={{ height: "20px", width: "100%", pointerEvents: "none" }}
         aria-hidden="true"
       />
     </>
