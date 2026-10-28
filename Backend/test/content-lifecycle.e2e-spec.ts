@@ -582,13 +582,21 @@ describe('Owned-Content Lifecycle API (e2e - JS-P0-05)', () => {
       const dbPost = await prisma.post.findUnique({
         where: { id: postWithRepliesId },
       });
-      expect(dbPost?.deletedAt).not.toBeNull();
+      expect(dbPost).toBeDefined();
+      expect(dbPost).not.toBeNull();
+      if (dbPost) {
+        expect(dbPost.deletedAt).not.toBeNull();
+      }
 
       // PostgreSQL fk_posts_reply_target RESTRICT is intact and not violated
       const dbReply = await prisma.post.findUnique({
         where: { id: replyId },
       });
-      expect(dbReply?.replyToId).toBe(postWithRepliesId);
+      expect(dbReply).toBeDefined();
+      expect(dbReply).not.toBeNull();
+      if (dbReply) {
+        expect(dbReply.replyToId).toBe(postWithRepliesId);
+      }
     });
   });
 });
