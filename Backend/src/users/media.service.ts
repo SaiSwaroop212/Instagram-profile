@@ -8,8 +8,9 @@ export class MediaService {
   async getMediaByUserId(
     userId: string,
     limit?: number | string,
-    cursor?: string
+    cursor?: string,
+    viewerId?: string
   ) {
-    return this.mediaRepository.getMediaByUserId(userId, limit, cursor);
+    return this.mediaRepository.getMediaByUserId(userId, limit, cursor, viewerId);
   }
 }
