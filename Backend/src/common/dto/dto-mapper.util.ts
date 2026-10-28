@@ -7,6 +7,8 @@ export interface PostWithRelations {
   createdAt: Date;
   replyToId: string | null;
   repostOfId: string | null;
+  version?: number;
+  deletedAt?: Date | null;
   author: {
     id: string;
     handle: string;
@@ -83,18 +85,22 @@ export function mapPostItem(
   replyCount: number,
   likedByViewer: boolean
 ): PostItemDto {
+  const isDeleted = Boolean(post.deletedAt);
   const result: PostItemDto = {
     id: post.id,
     kind: post.kind,
-    text: post.text,
+    text: isDeleted ? '[This post was deleted by author]' : post.text,
     createdAt: post.createdAt.toISOString(),
     author: mapAuthor(post.author),
-    media: mapMedia(post.media),
-    likeCount,
+    media: isDeleted ? [] : mapMedia(post.media),
+    likeCount: isDeleted ? 0 : likeCount,
     replyCount,
-    likedByViewer,
+    likedByViewer: isDeleted ? false : likedByViewer,
     replyToId: post.replyToId,
     repostOfId: post.repostOfId,
+    version: post.version,
+    isDeleted,
+    deletedAt: post.deletedAt ? post.deletedAt.toISOString() : null,
   };
 
   if (post.repostOf) {

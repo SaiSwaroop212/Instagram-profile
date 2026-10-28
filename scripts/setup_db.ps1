@@ -25,7 +25,7 @@ if (-not (Test-Path "$dataDir\PG_VERSION")) {
 $isReady = & "$pgBin\pg_isready.exe" -h localhost -p 5433 -U postgres 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host ">>> Starting PostgreSQL on port 5433..." -ForegroundColor Cyan
-    Start-Process -FilePath "$pgBin\postgres.exe" -ArgumentList "-D `"$dataDir`" -p 5433" -RedirectStandardOutput $logFile -RedirectStandardError $logFile -WindowStyle Hidden
+    & "$pgBin\pg_ctl.exe" -D $dataDir -l $logFile -o "-p 5433" start
     Start-Sleep -Seconds 2
 }
 

@@ -8,6 +8,8 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
 import { PrismaModule } from './prisma/prisma.module.js';
+import { AuthModule } from './auth/auth.module.js';
+import { NotificationModule } from './notifications/notification.module.js';
 
 import { HealthController } from './health/health.controller.js';
 import { HealthService } from './health/health.service.js';
@@ -42,7 +44,7 @@ import { SearchRepository } from './search/search.repository.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule, NotificationModule],
 
   controllers: [
     AppController,

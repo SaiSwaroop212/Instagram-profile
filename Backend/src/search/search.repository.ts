@@ -27,8 +27,30 @@ export class SearchRepository {
 
     const limit = parseLimit(limitParam, 10);
 
+    const privacyCondition: Prisma.UserWhereInput = viewerId
+      ? {
+          OR: [
+            { isPrivate: false },
+            { id: viewerId },
+            {
+              followers: {
+                some: {
+                  followerId: viewerId,
+                  status: 'accepted',
+                },
+              },
+            },
+          ],
+        }
+      : { isPrivate: false };
+
     const whereClause: Prisma.PostWhereInput = {
       kind: 'original',
+      deletedAt: null,
+      author: {
+        deactivatedAt: null,
+        ...privacyCondition,
+      },
       text: {
         contains: trimmed,
         mode: 'insensitive',
@@ -92,5 +114,86 @@ export class SearchRepository {
       nextCursor,
       hasMore,
     };
+  }
+
+  async searchUsers(
+    query?: string,
+    limit = 10,
+    viewerId?: string
+  ) {
+    const trimmed = (query || '').trim();
+    const whereClause: Prisma.UserWhereInput = {
+      deactivatedAt: null,
+      NOT: [
+        { handle: { startsWith: 'notif_' } },
+        { handle: { startsWith: 'rel_' } },
+        { handle: { startsWith: 's5_' } },
+        { handle: { startsWith: 'stage5_' } },
+        { handle: { startsWith: 'test_' } },
+        { handle: { startsWith: 'req_' } },
+        { handle: { startsWith: 'pvt_' } },
+      ],
+    };
+
+    if (trimmed) {
+      whereClause.OR = [
+        { handle: { contains: trimmed, mode: 'insensitive' } },
+        { displayName: { contains: trimmed, mode: 'insensitive' } },
+      ];
+    }
+
+    if (viewerId) {
+      whereClause.id = { not: viewerId };
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: whereClause,
+      take: limit,
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        handle: true,
+        displayName: true,
+        bio: true,
+        avatarSmallUrl: true,
+        avatarLargeUrl: true,
+        isPrivate: true,
+      },
+    });
+
+    const followStatusMap = new Map<string, string>();
+    if (viewerId && users.length > 0) {
+      const targetIds = users.map((u) => u.id);
+      const follows = await this.prisma.follow.findMany({
+        where: {
+          followerId: viewerId,
+          followingId: { in: targetIds },
+        },
+        select: { followingId: true, status: true },
+      });
+      for (const f of follows) {
+        followStatusMap.set(f.followingId, f.status);
+      }
+    }
+
+    const items = users.map((u) => {
+      const status = followStatusMap.get(u.id) || 'none';
+      return {
+        id: u.id,
+        handle: u.handle,
+        displayName: u.displayName,
+        bio: u.bio,
+        avatar: {
+          smallUrl: u.avatarSmallUrl,
+          largeUrl: u.avatarLargeUrl,
+        },
+        isPrivate: u.isPrivate,
+        followStatus: status,
+        isFollowing: status === 'accepted',
+        isRequested: status === 'pending',
+      };
+    });
+
+    return { items };
   }
 }

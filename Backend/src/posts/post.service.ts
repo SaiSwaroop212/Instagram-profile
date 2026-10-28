@@ -10,7 +10,7 @@ export class PostService {
     private readonly likeRepository: LikeRepository
   ) {}
 
-  async getPostById(id: string, viewerId: string = config.demoUserId) {
+  async getPostById(id: string, viewerId?: string) {
     const post = await this.postRepository.getPostById(id, viewerId);
 
     if (!post) {
@@ -26,5 +26,13 @@ export class PostService {
 
   async setLike(postId: string, desiredState: boolean, viewerId: string = config.demoUserId) {
     return this.likeRepository.setLike(postId, viewerId, desiredState);
+  }
+
+  async updatePost(id: string, authorId: string, updateDto: any) {
+    return this.postRepository.updatePost(id, authorId, updateDto);
+  }
+
+  async deletePost(id: string, authorId: string) {
+    return this.postRepository.deletePost(id, authorId);
   }
 }

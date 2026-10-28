@@ -7,6 +7,7 @@ describe('Social Feed API (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
+    process.env.ALLOW_V1_TEST_DEMO_FALLBACK = 'true';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -16,6 +17,7 @@ describe('Social Feed API (e2e)', () => {
   });
 
   afterAll(async () => {
+    delete process.env.ALLOW_V1_TEST_DEMO_FALLBACK;
     await app.close();
   });
 

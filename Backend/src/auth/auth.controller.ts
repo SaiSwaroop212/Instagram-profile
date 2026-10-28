@@ -1,0 +1,112 @@
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { AuthService } from './auth.service.js';
+import { RegisterDto } from './dto/register.dto.js';
+import { LoginDto } from './dto/login.dto.js';
+import { Public } from './public.decorator.js';
+import { CurrentUser } from './current-user.decorator.js';
+import type { SafeUser } from './auth.repository.js';
+import { AuthGuard } from './auth.guard.js';
+
+@UseGuards(AuthGuard)
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) { }
+
+  @Public()
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  async register(
+    @Body() body: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.register(body);
+
+    res.cookie('session', result.token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return result;
+  }
+
+  @Public()
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(
+    @Body() body: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(body);
+
+    res.cookie('session', result.token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return result;
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const token = this.extractTokenFromRequest(req);
+    if (token) {
+      await this.authService.logout(token);
+    }
+
+    res.clearCookie('session', { path: '/' });
+    return { success: true };
+  }
+
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  async logoutAll(
+    @CurrentUser('id') userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.logoutAll(userId);
+    res.clearCookie('session', { path: '/' });
+    return { success: true };
+  }
+
+  @Get('me')
+  @HttpCode(HttpStatus.OK)
+  getMe(@CurrentUser() user: SafeUser) {
+    return { user };
+  }
+
+  private extractTokenFromRequest(req: Request): string | null {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return authHeader.slice(7).trim();
+    }
+    const sessionHeader = req.headers['x-session-token'];
+    if (sessionHeader && typeof sessionHeader === 'string') {
+      return sessionHeader.trim();
+    }
+    const cookieHeader = req.headers.cookie;
+    if (cookieHeader) {
+      const match = cookieHeader.match(/(?:^|;\s*)(?:session|session_token)=([^;]+)/);
+      if (match) return decodeURIComponent(match[1]);
+    }
+    return null;
+  }
+}

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decodeCursor, encodeCursor, parseLimit } from '../common/cursor.util.js';
 import { PaginatedProfileMediaDto, ProfileMediaItemDto } from '../common/dto/post-response.dto.js';
@@ -11,17 +11,38 @@ export class MediaRepository {
   async getMediaByUserId(
     idOrHandle: string,
     limitParam?: string | number,
-    cursorParam?: string
+    cursorParam?: string,
+    viewerId?: string
   ): Promise<PaginatedProfileMediaDto> {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrHandle);
 
     const user = await this.prisma.user.findFirst({
-      where: isUuid ? { id: idOrHandle } : { handle: idOrHandle.toLowerCase() },
-      select: { id: true },
+      where: isUuid
+        ? { id: idOrHandle, deactivatedAt: null }
+        : { handle: idOrHandle.toLowerCase(), deactivatedAt: null },
+      select: { id: true, isPrivate: true },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (user.isPrivate && viewerId !== user.id) {
+      let isApproved = false;
+      if (viewerId) {
+        const follow = await this.prisma.follow.findUnique({
+          where: {
+            followerId_followingId: {
+              followerId: viewerId,
+              followingId: user.id,
+            },
+          },
+        });
+        isApproved = follow?.status === 'accepted';
+      }
+      if (!isApproved) {
+        throw new ForbiddenException('This account is private');
+      }
     }
 
     const limit = parseLimit(limitParam, 10);
@@ -30,6 +51,7 @@ export class MediaRepository {
       post: {
         authorId: user.id,
         kind: 'original',
+        deletedAt: null,
       },
     };
 
