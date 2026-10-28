@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { Prisma } from '@prisma/client';
+import { NotificationRepository } from '../notifications/notification.repository.js';
 
 export interface LikeResultDto {
   postId: string;
@@ -17,57 +17,59 @@ export class LikeRepository {
     viewerId: string,
     desiredState: boolean
   ): Promise<LikeResultDto> {
-    // 1. Verify post exists
-    const postExists = await this.prisma.post.findUnique({
-      where: { id: postId },
-      select: { id: true },
-    });
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Verify post exists and is not deleted
+      const post = await tx.post.findUnique({
+        where: { id: postId },
+        select: { id: true, authorId: true, deletedAt: true },
+      });
 
-    if (!postExists) {
-      throw new NotFoundException('Post not found');
-    }
+      if (!post || post.deletedAt !== null) {
+        throw new NotFoundException('Post not found');
+      }
 
-    // 2. Perform desired state operation
-    if (desiredState) {
-      try {
-        await this.prisma.postLike.create({
-          data: {
+      const sourceEventId = `like:${postId}:${viewerId}`;
+
+      // 2. Perform desired state operation
+      if (desiredState) {
+        await tx.$executeRaw`
+          INSERT INTO post_likes (post_id, user_id)
+          VALUES (${postId}::uuid, ${viewerId}::uuid)
+          ON CONFLICT (post_id, user_id) DO NOTHING
+        `;
+
+        // Emit notification inside same transaction (self-action filtered inside emitNotification)
+        await NotificationRepository.emitNotification(tx, {
+          recipientId: post.authorId,
+          actorId: viewerId,
+          eventType: 'like',
+          postId,
+          sourceEventId,
+        });
+      } else {
+        // Unlike: delete if present, idempotent
+        await tx.postLike.deleteMany({
+          where: {
             postId,
             userId: viewerId,
           },
         });
-      } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-          // P2002: unique constraint violation (already liked)
-          // Idempotent: repeated like keeps state liked
-          if (error.code === 'P2002') {
-            // Already liked, ignore duplicate insert
-          } else {
-            throw error;
-          }
-        } else {
-          throw error;
-        }
+
+        // Revoke unread notification on unlike
+        await NotificationRepository.revokeNotification(tx, sourceEventId);
       }
-    } else {
-      // Unlike: delete if present, idempotent
-      await this.prisma.postLike.deleteMany({
-        where: {
-          postId,
-          userId: viewerId,
-        },
+
+      // 3. Authoritative count
+      const likeCount = await tx.postLike.count({
+        where: { postId },
       });
-    }
 
-    // 3. Authoritative count
-    const likeCount = await this.prisma.postLike.count({
-      where: { postId },
+      return {
+        postId,
+        likedByViewer: desiredState,
+        likeCount,
+      };
     });
-
-    return {
-      postId,
-      likedByViewer: desiredState,
-      likeCount,
-    };
   }
 }
+

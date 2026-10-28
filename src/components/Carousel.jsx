@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import CommentBox from "./CommentBox";
-import { fetchReplies, followUser, unfollowUser, checkIsFollowing } from "../services/api";
+import {
+  fetchReplies,
+  followUser,
+  unfollowUser,
+  checkIsFollowing,
+  getStoredUser,
+  toggleLike,
+  updatePost,
+  deletePost,
+} from "../services/api";
 
 export function Carousel({
   carouselPosts,
@@ -10,28 +19,59 @@ export function Carousel({
   comments,
   onAddComment,
   bookmarks,
-  onToggleBookmark
+  onToggleBookmark,
+  onPostUpdated,
+  onPostDeleted,
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dbReplies, setDbReplies] = useState([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [followStatus, setFollowStatus] = useState("none"); // "none" | "pending" | "accepted"
   const [followLoading, setFollowLoading] = useState(false);
+  const isFollowing = followStatus === "accepted";
+  const isRequested = followStatus === "pending";
   const commentInputRef = useRef(null);
 
   if (!carouselPosts || carouselPosts.length === 0) {
     return null;
   }
 
-  const totalPosts = carouselPosts.length;
-
-  // Current image changes when we move to next/previous
-  const currentPost =
-    carouselPosts[currentIndex] || carouselPosts[0];
-
-  // ONE POST'S DETAILS
-  // These details stay the same for all 3 images
   const postDetails = carouselPosts[0];
+
+  // If this specific post has multiple media items (up to 4), slide through its images!
+  const hasPostMedia = Boolean(postDetails?.media && postDetails.media.length > 0);
+  const mediaList = hasPostMedia
+    ? postDetails.media.map((m) => m.largeUrl || m.smallUrl)
+    : carouselPosts.map((p) => p.imageUrl);
+
+  const totalImages = mediaList.length;
+  const currentPost = carouselPosts[currentIndex] || carouselPosts[0];
+  const currentImageUrl = mediaList[currentIndex] || mediaList[0] || currentPost.imageUrl;
+
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [postDetails?.id]);
+
+  const [likesCount, setLikesCount] = useState(postDetails?.likeCount ?? 0);
+  const [isLikedState, setIsLikedState] = useState(Boolean(postDetails?.likedByViewer || isLiked));
+
+  // Edit post state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(postDetails?.caption || "");
+  const [currentCaption, setCurrentCaption] = useState(postDetails?.caption || "");
+  const [currentVersion, setCurrentVersion] = useState(postDetails?.version ?? 1);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  useEffect(() => {
+    setLikesCount(postDetails?.likeCount ?? 0);
+    setIsLikedState(Boolean(postDetails?.likedByViewer || isLiked));
+    setCurrentCaption(postDetails?.caption || "");
+    setEditText(postDetails?.caption || "");
+    setCurrentVersion(postDetails?.version ?? 1);
+    setIsEditing(false);
+    setEditError("");
+  }, [postDetails?.id, postDetails?.likeCount, postDetails?.likedByViewer, postDetails?.caption, postDetails?.version, isLiked]);
 
   // Load existing replies from PostgreSQL
   useEffect(() => {
@@ -55,15 +95,23 @@ export function Carousel({
     };
   }, [postDetails?.id]);
 
+  const currentUser = getStoredUser();
+  const isSelf = Boolean(
+    currentUser &&
+      (currentUser.id === postDetails?.authorId ||
+        currentUser.handle?.toLowerCase() === postDetails?.username?.toLowerCase())
+  );
+
   // Load follow status for this post's author from PostgreSQL
   useEffect(() => {
-    if (!postDetails?.username || postDetails.username === "asha") return;
+    if (!postDetails?.username || isSelf) return;
     let isCancelled = false;
 
     checkIsFollowing(postDetails.username)
       .then((res) => {
         if (!isCancelled) {
-          setIsFollowing(Boolean(res?.following));
+          const status = res?.status || (res?.following ? "accepted" : "none");
+          setFollowStatus(status);
         }
       })
       .catch((err) => console.error("Error checking follow status:", err));
@@ -71,28 +119,113 @@ export function Carousel({
     return () => {
       isCancelled = true;
     };
-  }, [postDetails?.username]);
+  }, [postDetails?.username, isSelf]);
+
+  // Listen to follow updates from elsewhere
+  useEffect(() => {
+    const handleFollowUpdated = (e) => {
+      if (
+        e.detail?.targetId &&
+        (e.detail.targetId === postDetails?.authorId ||
+          e.detail.targetId?.toLowerCase() === postDetails?.username?.toLowerCase())
+      ) {
+        setFollowStatus(e.detail.status || (e.detail.following ? "accepted" : "none"));
+      }
+    };
+    window.addEventListener("follow-updated", handleFollowUpdated);
+    return () => window.removeEventListener("follow-updated", handleFollowUpdated);
+  }, [postDetails?.authorId, postDetails?.username]);
 
   // Toggle follow/unfollow in PostgreSQL
   const handleToggleFollow = async (e) => {
     if (e) e.stopPropagation();
-    if (followLoading || !postDetails?.username || postDetails.username === "asha") return;
+    if (followLoading || !postDetails?.username || isSelf) return;
 
-    const nextState = !isFollowing;
-    setIsFollowing(nextState);
+    const prevStatus = followStatus;
+    const isActivelyFollowing = prevStatus === "accepted" || prevStatus === "pending";
     setFollowLoading(true);
 
     try {
-      if (nextState) {
-        await followUser(postDetails.username);
+      if (!isActivelyFollowing) {
+        const res = await followUser(postDetails.username);
+        const resolved = res?.status || (res?.following ? "accepted" : "pending");
+        setFollowStatus(resolved);
+        window.dispatchEvent(
+          new CustomEvent("follow-updated", {
+            detail: {
+              targetId: postDetails.authorId || postDetails.username,
+              status: resolved,
+              following: resolved === "accepted",
+            },
+          })
+        );
       } else {
         await unfollowUser(postDetails.username);
+        setFollowStatus("none");
+        window.dispatchEvent(
+          new CustomEvent("follow-updated", {
+            detail: {
+              targetId: postDetails.authorId || postDetails.username,
+              status: "none",
+              following: false,
+            },
+          })
+        );
       }
     } catch (err) {
       console.error("Failed to update follow state:", err);
-      setIsFollowing(!nextState); // Rollback on failure
+      setFollowStatus(prevStatus); // Rollback on failure
     } finally {
       setFollowLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async (e) => {
+    if (e) e.preventDefault();
+    if (!editText.trim() || isUpdating) return;
+
+    setIsUpdating(true);
+    setEditError("");
+
+    try {
+      const updated = await updatePost(postDetails.id, editText.trim(), currentVersion);
+      setCurrentCaption(updated.caption);
+      setCurrentVersion(updated.version ?? (currentVersion + 1));
+      setIsEditing(false);
+      if (onPostUpdated) {
+        onPostUpdated({
+          ...postDetails,
+          caption: updated.caption,
+          text: updated.caption,
+          version: updated.version,
+        });
+      }
+    } catch (err) {
+      if (err.message && err.message.includes("409")) {
+        setEditError("Conflict: This post was modified in another session. Please refresh and try again.");
+      } else {
+        setEditError(err.message || "Failed to update post");
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this post? This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      await deletePost(postDetails.id);
+      if (onPostDeleted) {
+        onPostDeleted(postDetails.id);
+      } else {
+        onClose();
+      }
+    } catch (err) {
+      alert(`Failed to delete post: ${err.message}`);
     }
   };
 
@@ -103,11 +236,11 @@ export function Carousel({
         onClose();
       } else if (e.key === "ArrowLeft") {
         setCurrentIndex(
-          (prev) => (prev - 1 + totalPosts) % totalPosts
+          (prev) => (prev - 1 + totalImages) % totalImages
         );
       } else if (e.key === "ArrowRight") {
         setCurrentIndex(
-          (prev) => (prev + 1) % totalPosts
+          (prev) => (prev + 1) % totalImages
         );
       }
     };
@@ -117,7 +250,7 @@ export function Carousel({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [totalPosts, onClose]);
+  }, [totalImages, onClose]);
 
   const isBookmarked = Boolean(bookmarks[postDetails.id]);
 
@@ -125,7 +258,7 @@ export function Carousel({
     if (e) e.stopPropagation();
 
     setCurrentIndex(
-      (prev) => (prev - 1 + totalPosts) % totalPosts
+      (prev) => (prev - 1 + totalImages) % totalImages
     );
   };
 
@@ -133,14 +266,30 @@ export function Carousel({
     if (e) e.stopPropagation();
 
     setCurrentIndex(
-      (prev) => (prev + 1) % totalPosts
+      (prev) => (prev + 1) % totalImages
     );
   };
 
   // ONE shared Like for the whole carousel
-  const handleLike = (e) => {
+  const handleLike = async (e) => {
     e.stopPropagation();
-    onToggleLike();
+    const nextLiked = !isLikedState;
+    const nextCount = nextLiked ? likesCount + 1 : Math.max(0, likesCount - 1);
+
+    setIsLikedState(nextLiked);
+    setLikesCount(nextCount);
+
+    try {
+      await toggleLike(postDetails.id, !nextLiked);
+      if (onToggleLike) {
+        onToggleLike(postDetails.id, nextLiked, nextCount);
+      }
+    } catch (err) {
+      console.error("Failed to toggle like:", err);
+      // Rollback on failure
+      setIsLikedState(!nextLiked);
+      setLikesCount(likesCount);
+    }
   };
 
   // Bookmark belongs to the ONE POST
@@ -199,19 +348,63 @@ export function Carousel({
                     {postDetails.username}
                   </span>
 
-                  {postDetails.username !== "asha" && (
+                  {!isSelf ? (
                     <>
                       <span className="carousel-user-dot">•</span>
                       <button
                         type="button"
                         className={`carousel-follow-btn ${
-                          isFollowing ? "following" : ""
+                          isFollowing ? "following" : isRequested ? "requested" : ""
                         }`}
                         onClick={handleToggleFollow}
                         disabled={followLoading}
-                        aria-label={isFollowing ? "Unfollow user" : "Follow user"}
+                        aria-label={
+                          isFollowing
+                            ? "Unfollow user"
+                            : isRequested
+                            ? "Cancel follow request"
+                            : "Follow user"
+                        }
+                        title={
+                          isRequested
+                            ? "Follow request sent. Click to cancel."
+                            : isFollowing
+                            ? "Following. Click to unfollow."
+                            : "Click to follow"
+                        }
                       >
-                        {isFollowing ? "Following" : "Follow"}
+                        {followLoading
+                          ? "..."
+                          : isFollowing
+                          ? "Following"
+                          : isRequested
+                          ? "Requested"
+                          : "Follow"}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="carousel-user-dot">•</span>
+                      <button
+                        type="button"
+                        className="carousel-owner-edit-btn"
+                        onClick={() => {
+                          setEditText(currentCaption);
+                          setIsEditing(!isEditing);
+                        }}
+                        aria-label="Edit post"
+                        title="Edit post"
+                      >
+                        {isEditing ? "Cancel" : "Edit"}
+                      </button>
+                      <button
+                        type="button"
+                        className="carousel-owner-delete-btn"
+                        onClick={handleDeletePost}
+                        aria-label="Delete post"
+                        title="Delete post"
+                      >
+                        Delete
                       </button>
                     </>
                   )}
@@ -238,23 +431,24 @@ export function Carousel({
 
 
           {/* 2. IMAGE SECTION */}
-          {/* ONLY THE IMAGE changes */}
           <div className="carousel-image-section">
 
-            <button
-              type="button"
-              className="carousel-prev"
-              onClick={handlePrev}
-              aria-label="Previous image"
-            >
-              ‹
-            </button>
+            {totalImages > 1 && (
+              <button
+                type="button"
+                className="carousel-prev"
+                onClick={handlePrev}
+                aria-label="Previous image"
+              >
+                ‹
+              </button>
+            )}
 
             <div className="carousel-image-wrapper">
 
               <img
                 className="carousel-image"
-                src={currentPost.imageUrl}
+                src={currentImageUrl}
                 alt={
                   postDetails.caption ||
                   postDetails.title
@@ -266,25 +460,29 @@ export function Carousel({
                 }}
               />
 
-              <div
-                className="carousel-counter"
-                aria-label={`Image ${
-                  currentIndex + 1
-                } of ${totalPosts}`}
-              >
-                {currentIndex + 1}/{totalPosts}
-              </div>
+              {totalImages > 1 && (
+                <div
+                  className="carousel-counter"
+                  aria-label={`Image ${
+                    currentIndex + 1
+                  } of ${totalImages}`}
+                >
+                  {currentIndex + 1}/{totalImages}
+                </div>
+              )}
 
             </div>
 
-            <button
-              type="button"
-              className="carousel-next"
-              onClick={handleNext}
-              aria-label="Next image"
-            >
-              ›
-            </button>
+            {totalImages > 1 && (
+              <button
+                type="button"
+                className="carousel-next"
+                onClick={handleNext}
+                aria-label="Next image"
+              >
+                ›
+              </button>
+            )}
 
           </div>
 
@@ -298,14 +496,14 @@ export function Carousel({
               <button
                 type="button"
                 className={`carousel-like ${
-                  isLiked ? "liked" : ""
+                  isLikedState ? "liked" : ""
                 }`}
                 onClick={handleLike}
                 aria-label={
-                  isLiked ? "Unlike" : "Like"
+                  isLikedState ? "Unlike" : "Like"
                 }
               >
-                {isLiked ? "♥" : "♡"}
+                {isLikedState ? "♥" : "♡"}
               </button>
 
 
@@ -392,55 +590,107 @@ export function Carousel({
 
 
           {/* 4. CAROUSEL DOTS */}
-          <div
-            className="carousel-dots"
-            role="tablist"
-            aria-label="Carousel navigation dots"
-          >
-
-            {carouselPosts.map((_, index) => (
-
-              <button
-                key={index}
-                type="button"
-                className={`carousel-dot ${
-                  index === currentIndex
-                    ? "active"
-                    : ""
-                }`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCurrentIndex(index);
-                }}
-                aria-label={`Go to image ${
-                  index + 1
-                }`}
-                role="tab"
-                aria-selected={
-                  index === currentIndex
-                }
-              />
-
-            ))}
-
-          </div>
+          {totalImages > 1 && (
+            <div
+              className="carousel-dots"
+              role="tablist"
+              aria-label="Carousel navigation dots"
+            >
+              {mediaList.map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className={`carousel-dot ${
+                    index === currentIndex
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentIndex(index);
+                  }}
+                  aria-label={`Go to image ${
+                    index + 1
+                  }`}
+                  role="tab"
+                  aria-selected={
+                    index === currentIndex
+                  }
+                />
+              ))}
+            </div>
+          )}
 
 
           {/* 5. POST INFORMATION */}
           {/* SAME INFORMATION FOR ALL 3 IMAGES */}
           <div className="carousel-post-info">
 
-            <div className="carousel-caption-row">
-
-              <span className="carousel-caption-username">
-                {postDetails.username}
-              </span>
-
-              <span className="carousel-caption-text">
-                {postDetails.caption}
-              </span>
-
+            <div className="carousel-likes-count">
+              <strong>{likesCount} {likesCount === 1 ? "like" : "likes"}</strong>
             </div>
+
+            {isEditing ? (
+              <form onSubmit={handleSaveEdit} className="carousel-inline-edit-form">
+                {editError && <div className="auth-error-banner">{editError}</div>}
+                <textarea
+                  className="carousel-edit-textarea"
+                  value={editText}
+                  maxLength={280}
+                  onChange={(e) => setEditText(e.target.value)}
+                  rows={3}
+                  required
+                  autoFocus
+                />
+                <div className="carousel-edit-controls">
+                  <span className="carousel-edit-counter">{editText.length}/280</span>
+                  <div className="carousel-edit-btn-group">
+                    <button
+                      type="button"
+                      className="carousel-edit-cancel-btn"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditText(currentCaption);
+                        setEditError("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="carousel-edit-save-btn"
+                      disabled={!editText.trim() || isUpdating}
+                    >
+                      {isUpdating ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <div className="carousel-caption-row">
+                <span className="carousel-caption-username">
+                  {postDetails.username}
+                </span>
+
+                <span className="carousel-caption-text">
+                  {currentCaption}
+                </span>
+
+                {isSelf && (
+                  <button
+                    type="button"
+                    className="carousel-caption-edit-link"
+                    onClick={() => {
+                      setEditText(currentCaption);
+                      setIsEditing(true);
+                    }}
+                    title="Edit caption"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+            )}
 
 
             {postDetails.hashtags && (

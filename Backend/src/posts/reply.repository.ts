@@ -16,14 +16,23 @@ export class ReplyRepository {
     cursorParam?: string,
     viewerId?: string
   ): Promise<PaginatedPostsDto> {
-    // 1. Verify parent post exists
+    // 1. Verify parent post exists (or tombstone if it has replies)
     const parentPost = await this.prisma.post.findUnique({
       where: { id: postId },
-      select: { id: true },
+      select: { id: true, deletedAt: true },
     });
 
     if (!parentPost) {
       throw new NotFoundException('Post not found');
+    }
+
+    if (parentPost.deletedAt !== null) {
+      const existingRepliesCount = await this.prisma.post.count({
+        where: { replyToId: postId, kind: 'reply' },
+      });
+      if (existingRepliesCount === 0) {
+        throw new NotFoundException('Post not found');
+      }
     }
 
     const limit = parseLimit(limitParam, 10);
@@ -31,6 +40,7 @@ export class ReplyRepository {
     const whereClause: Prisma.PostWhereInput = {
       replyToId: postId,
       kind: 'reply',
+      deletedAt: null,
     };
 
     if (cursorParam) {
