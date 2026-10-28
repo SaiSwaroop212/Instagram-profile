@@ -137,7 +137,7 @@ describe('Security, Compatibility & Release Controls (e2e - JS-P0-07)', () => {
         const proto = ctrl.prototype;
         for (const methodName of Object.getOwnPropertyNames(proto)) {
           if (methodName === 'constructor') continue;
-          const methodFn = proto[methodName];
+          const methodFn = (proto as any)[methodName];
           const methodPath = Reflect.getMetadata('path', methodFn);
           const reqMethodNum = Reflect.getMetadata('method', methodFn);
 

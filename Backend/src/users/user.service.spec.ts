@@ -18,6 +18,7 @@ describe('UserService (Unit - Stage 2: JS-P0-02)', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     deactivatedAt: null,
+    isPrivate: false,
   };
 
   beforeEach(() => {
