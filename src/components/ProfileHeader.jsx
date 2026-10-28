@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { updateUserProfile, fetchUserProfile, getStoredUser } from "../services/api";
+import { updateUserProfile, fetchUserProfile, getStoredUser, deactivateCurrentUser } from "../services/api";
 
 export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
   const [user, setUser] = useState(getStoredUser());
@@ -14,6 +14,9 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
   const [isPrivateInput, setIsPrivateInput] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [deactivateError, setDeactivateError] = useState("");
 
   // Sync user profile from backend on mount or user switch
   const refreshProfile = () => {
@@ -117,6 +120,24 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
     }
   };
 
+  const handleDeactivate = async () => {
+    setIsDeactivating(true);
+    setDeactivateError("");
+    try {
+      await deactivateCurrentUser();
+      setShowDeactivateConfirm(false);
+      setShowEditModal(false);
+      setUser(null);
+      window.dispatchEvent(new CustomEvent("user-updated", { detail: null }));
+      if (onProfileUpdated) {
+        onProfileUpdated(null);
+      }
+    } catch (err) {
+      setDeactivateError(err.message || "Failed to deactivate account");
+      setIsDeactivating(false);
+    }
+  };
+
   if (!user) return null;
 
   const avatarUrl =
@@ -156,6 +177,20 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
             title="Edit your bio and profile details"
           >
             Edit Profile
+          </button>
+
+          <button
+            type="button"
+            className="profile-banner-edit-btn profile-banner-delete-btn"
+            onClick={() => setShowDeactivateConfirm(true)}
+            style={{
+              borderColor: "#ed4956",
+              color: "#ed4956",
+              marginLeft: "4px",
+            }}
+            title="Deactivate or delete your account"
+          >
+            Delete Profile
           </button>
 
           {user.isPrivate ? (
@@ -313,7 +348,126 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
                   {isSaving ? "Saving..." : "Save Profile"}
                 </button>
               </div>
+
+              {/* Danger Zone: Account Deactivation (P0-02) */}
+              <div
+                className="profile-danger-zone"
+                style={{
+                  marginTop: "24px",
+                  paddingTop: "16px",
+                  borderTop: "1px solid #efefef",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: "#ed4956", fontSize: "13px" }}>
+                      Delete / Deactivate Profile
+                    </strong>
+                    <p
+                      style={{
+                        margin: "2px 0 0",
+                        fontSize: "11px",
+                        color: "#8e8e8e",
+                        lineHeight: "1.4",
+                      }}
+                    >
+                      Hide your profile, posts, and followers as per P0-02.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeactivateConfirm(true)}
+                    style={{
+                      backgroundColor: "#fff",
+                      color: "#ed4956",
+                      border: "1px solid #ed4956",
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      fontWeight: "600",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Delete Profile
+                  </button>
+                </div>
+              </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Profile Deletion / Deactivation */}
+      {showDeactivateConfirm && (
+        <div className="auth-modal-backdrop" style={{ zIndex: 1200 }}>
+          <div
+            className="auth-modal-card"
+            style={{
+              maxWidth: "400px",
+              padding: "24px",
+              textAlign: "center",
+              borderRadius: "12px",
+            }}
+          >
+            <div style={{ fontSize: "36px", marginBottom: "8px" }}>⚠️</div>
+            <h3 style={{ margin: "0 0 8px", fontSize: "18px", color: "#262626" }}>
+              Delete / Deactivate Profile?
+            </h3>
+            <p
+              style={{
+                margin: "0 0 20px",
+                fontSize: "13px",
+                color: "#737373",
+                lineHeight: "1.5",
+              }}
+            >
+              Are you sure you want to deactivate <strong>@{user.handle}</strong>?
+              Your profile, posts, and followers will be hidden, and your active sessions will be terminated as per <strong>P0-02</strong>.
+            </p>
+
+            {deactivateError && (
+              <div className="auth-error-banner" style={{ marginBottom: "16px" }}>
+                {deactivateError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+              <button
+                type="button"
+                className="cancel-btn-subtle"
+                onClick={() => {
+                  setShowDeactivateConfirm(false);
+                  setDeactivateError("");
+                }}
+                disabled={isDeactivating}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeactivate}
+                disabled={isDeactivating}
+                style={{
+                  backgroundColor: "#ed4956",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "8px 16px",
+                  fontWeight: "600",
+                  cursor: isDeactivating ? "not-allowed" : "pointer",
+                }}
+              >
+                {isDeactivating ? "Deactivating..." : "Yes, Delete Profile"}
+              </button>
+            </div>
           </div>
         </div>
       )}
