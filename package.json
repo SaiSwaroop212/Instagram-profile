@@ -4,16 +4,26 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "start": "concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm run start:dev\" \"npm run dev\"",
+    "dev:all": "concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm run start:dev\" \"npm run dev\"",
     "dev": "vite",
+    "dev:backend": "npm --prefix Backend run start:dev",
+    "start:dev": "npm --prefix Backend run start:dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npm --prefix Backend run test",
+    "test:e2e": "npm --prefix Backend run test:e2e"
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^10.0.6",
     "vite": "^5.4.2"
   }
 }

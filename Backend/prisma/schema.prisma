@@ -1,7 +1,3 @@
-// ============================================================================
-// Prisma Schema for Social Feed Database (Stage C — PRD 04)
-// Database: PostgreSQL 17
-// ============================================================================
 
 generator client {
   provider = "prisma-client-js"
@@ -13,37 +9,43 @@ datasource db {
 }
 
 model User {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  handle          String   @unique @db.VarChar(30)
-  displayName     String   @map("display_name") @db.VarChar(50)
-  bio             String   @default("")
-  avatarSmallUrl  String   @map("avatar_small_url")
-  avatarLargeUrl  String   @map("avatar_large_url")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  handle         String   @unique @db.VarChar(30)
+  displayName    String   @map("display_name") @db.VarChar(50)
+  passwordHash   String   @map("password_hash") @db.VarChar(255)
+  bio            String   @default("")
+  avatarSmallUrl String   @map("avatar_small_url")
+  avatarLargeUrl String   @map("avatar_large_url")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deactivatedAt  DateTime? @map("deactivated_at") @db.Timestamptz(3)
+  isPrivate      Boolean   @default(false) @map("is_private")
 
   // Relations
-  posts                  Post[]         @relation("UserPosts")
-  likes                  PostLike[]
-  following              Follow[]       @relation("UserFollowing")
-  followers              Follow[]       @relation("UserFollowers")
-  notificationsReceived  Notification[] @relation("RecipientNotifications")
-  notificationsActed     Notification[] @relation("ActorNotifications")
+  posts                 Post[]         @relation("UserPosts")
+  likes                 PostLike[]
+  following             Follow[]       @relation("UserFollowing")
+  followers             Follow[]       @relation("UserFollowers")
+  notificationsReceived Notification[] @relation("RecipientNotifications")
+  notificationsActed    Notification[] @relation("ActorNotifications")
+  sessions              AuthSession[]
 
   @@map("users")
 }
 
 model Post {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  authorId          String   @map("author_id") @db.Uuid
-  kind              String   @db.VarChar(10) // 'original', 'reply', 'repost'
-  text              String?  @db.VarChar(280)
-  replyToId         String?  @map("reply_to_id") @db.Uuid
-  repostOfId        String?  @map("repost_of_id") @db.Uuid
-  replyTargetKind   String?  @default(dbgenerated()) @map("reply_target_kind") @db.VarChar(10)
-  repostTargetKind  String?  @default(dbgenerated()) @map("repost_target_kind") @db.VarChar(10)
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  authorId         String   @map("author_id") @db.Uuid
+  kind             String   @db.VarChar(10)
+  text             String?  @db.VarChar(280)
+  replyToId        String?  @map("reply_to_id") @db.Uuid
+  repostOfId       String?  @map("repost_of_id") @db.Uuid
+  replyTargetKind  String?  @default(dbgenerated()) @map("reply_target_kind") @db.VarChar(10)
+  repostTargetKind String?  @default(dbgenerated()) @map("repost_target_kind") @db.VarChar(10)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version          Int      @default(1)
 
   // Relations
   author        User           @relation("UserPosts", fields: [authorId], references: [id], onDelete: Restrict)
@@ -64,19 +66,19 @@ model Post {
 }
 
 model PostMedia {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  postId           String   @map("post_id") @db.Uuid
-  position         Int      @db.SmallInt
-  altText          String   @map("alt_text")
-  width            Int
-  height           Int
-  smallUrl         String   @map("small_url")
-  largeUrl         String   @map("large_url")
-  mediaTargetKind  String   @default("original") @map("media_target_kind") @db.VarChar(10)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId          String   @map("post_id") @db.Uuid
+  position        Int      @db.SmallInt
+  altText         String   @map("alt_text")
+  width           Int
+  height          Int
+  smallUrl        String   @map("small_url")
+  largeUrl        String   @map("large_url")
+  mediaTargetKind String   @default("original") @map("media_target_kind") @db.VarChar(10)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   // Relations
-  post             Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([postId, position])
   @@index([createdAt(sort: Desc), id(sort: Desc)])
@@ -89,8 +91,8 @@ model PostLike {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   // Relations
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([postId, userId])
   @@index([userId, postId])
@@ -100,32 +102,49 @@ model PostLike {
 model Follow {
   followerId  String   @map("follower_id") @db.Uuid
   followingId String   @map("following_id") @db.Uuid
+  status      String   @default("accepted") @db.VarChar(20)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   // Relations
-  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
-  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId])
   @@index([followingId, followerId])
+  @@index([followingId, status])
+  @@index([followerId, status])
   @@map("follows")
 }
 
 model Notification {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  recipientId    String    @map("recipient_id") @db.Uuid
-  actorId        String    @map("actor_id") @db.Uuid
-  eventType      String    @map("event_type") @db.VarChar(20)
-  postId         String?   @map("post_id") @db.Uuid
-  sourceEventId  String    @unique @map("source_event_id")
-  readAt         DateTime? @map("read_at") @db.Timestamptz(3)
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipientId   String    @map("recipient_id") @db.Uuid
+  actorId       String    @map("actor_id") @db.Uuid
+  eventType     String    @map("event_type") @db.VarChar(20)
+  postId        String?   @map("post_id") @db.Uuid
+  sourceEventId String    @unique @map("source_event_id")
+  readAt        DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   // Relations
-  recipient      User      @relation("RecipientNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
-  actor          User      @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: Cascade)
-  post           Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  recipient User  @relation("RecipientNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User  @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+  post      Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([recipientId, readAt, createdAt(sort: Desc)])
   @@map("notifications")
+}
+
+model AuthSession {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("auth_sessions")
 }

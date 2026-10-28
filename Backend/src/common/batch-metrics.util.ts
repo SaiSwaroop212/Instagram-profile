@@ -39,6 +39,7 @@ export async function fetchBatchMetrics(
     where: {
       replyToId: { in: postIds },
       kind: 'reply',
+      deletedAt: null,
     },
     _count: {
       replyToId: true,

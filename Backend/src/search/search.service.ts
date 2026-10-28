@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { SearchRepository } from './search.repository.js';
-import { config } from '../config/config.js';
 
 @Injectable()
 export class SearchService {
@@ -10,8 +9,16 @@ export class SearchService {
     query?: string,
     limit?: number | string,
     cursor?: string,
-    viewerId: string = config.demoUserId
+    viewerId?: string
   ) {
     return this.searchRepository.searchOriginals(query, limit, cursor, viewerId);
+  }
+
+  async searchUsers(
+    query?: string,
+    limit = 10,
+    viewerId?: string
+  ) {
+    return this.searchRepository.searchUsers(query, limit, viewerId);
   }
 }
