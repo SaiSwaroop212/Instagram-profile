@@ -205,7 +205,7 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
             title="Click to edit bio"
           >
             {activeUser.bio ? (
-              user.bio
+              activeUser.bio
             ) : (
               <span className="profile-empty-bio-hint">
                 + Add a bio to tell people about yourself
