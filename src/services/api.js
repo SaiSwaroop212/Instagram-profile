@@ -1,4 +1,86 @@
-const API_URL = "http://localhost:3001";
+const API_URL =
+  typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL
+    : "http://localhost:3001";
+
+const DEMO_EXPLORE_POSTS = [
+  {
+    id: "demo-post-1",
+    author: { id: "demo-user-1", handle: "traveler_sophie", displayName: "Sophie Vance" },
+    text: "Sunrise above the clouds in the Swiss Alps 🏔️✨ #travel #alps #adventure #wanderlust",
+    createdAt: new Date().toISOString(),
+    media: [
+      { id: "m1-1", largeUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1080&q=80", position: 0 },
+      { id: "m1-2", largeUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1080&q=80", position: 1 },
+      { id: "m1-3", largeUrl: "https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=1080&q=80", position: 2 },
+    ],
+    likeCount: 142,
+    replyCount: 18,
+    kind: "original",
+  },
+  {
+    id: "demo-post-2",
+    author: { id: "demo-user-2", handle: "artofvisuals", displayName: "Art of Visuals" },
+    text: "Moody architecture and neon reflections in the heart of Tokyo 🇯🇵🌧️ #tokyo #architecture #street",
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    media: [
+      { id: "m2-1", largeUrl: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=1080&q=80", position: 0 },
+      { id: "m2-2", largeUrl: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1080&q=80", position: 1 },
+    ],
+    likeCount: 289,
+    replyCount: 34,
+    kind: "original",
+  },
+  {
+    id: "demo-post-3",
+    author: { id: "demo-user-3", handle: "chef_marco", displayName: "Marco Bellini" },
+    text: "Handmade tagliatelle al tartufo fresco. Perfection takes time and love 🍝🇮🇹 #culinary #food #chef",
+    createdAt: new Date(Date.now() - 7200000).toISOString(),
+    media: [
+      { id: "m3-1", largeUrl: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=1080&q=80", position: 0 },
+      { id: "m3-2", largeUrl: "https://images.unsplash.com/photo-1546549032-9571cd6b27df?w=1080&q=80", position: 1 },
+    ],
+    likeCount: 95,
+    replyCount: 12,
+    kind: "original",
+  },
+  {
+    id: "demo-post-4",
+    author: { id: "demo-user-4", handle: "astral_skies", displayName: "Astral Skies" },
+    text: "Milky Way core over the desert silence. 25-second exposure at f/1.8 🌌✨ #astrophotography #space",
+    createdAt: new Date(Date.now() - 10800000).toISOString(),
+    media: [
+      { id: "m4-1", largeUrl: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1080&q=80", position: 0 },
+    ],
+    likeCount: 412,
+    replyCount: 52,
+    kind: "original",
+  },
+  {
+    id: "demo-post-5",
+    author: { id: "demo-user-5", handle: "coffee_and_craft", displayName: "Elena Rostova" },
+    text: "Morning pour over with Ethiopian Yirgacheffe notes of bergamot and jasmine ☕🌿 #coffee #morning",
+    createdAt: new Date(Date.now() - 14400000).toISOString(),
+    media: [
+      { id: "m5-1", largeUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=1080&q=80", position: 0 },
+    ],
+    likeCount: 167,
+    replyCount: 21,
+    kind: "original",
+  },
+  {
+    id: "demo-post-6",
+    author: { id: "demo-user-6", handle: "minimal_lines", displayName: "Koushik Sen" },
+    text: "Geometric shadows and brutalist curves in concrete harmony 📐🏛️ #minimalism #architecture",
+    createdAt: new Date(Date.now() - 18000000).toISOString(),
+    media: [
+      { id: "m6-1", largeUrl: "https://images.unsplash.com/photo-1513694203232-719a280e022f?w=1080&q=80", position: 0 },
+    ],
+    likeCount: 224,
+    replyCount: 19,
+    kind: "original",
+  },
+];
 
 // ============================================================================
 // Auth Storage Helpers
@@ -255,25 +337,38 @@ export async function fetchPosts(cursor = null, limit = 10, scope = null) {
     url += `&scope=${encodeURIComponent(scope)}`;
   }
 
-  const response = await fetch(url, {
-    headers: getAuthHeaders(),
-  });
+  try {
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch posts: ${response.status} ${response.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch posts: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      items: (data.items || []).map(formatPost),
+      nextCursor: data.nextCursor,
+      hasMore: Boolean(data.hasMore),
+      feedType: data.feedType,
+      isFallback: Boolean(data.isFallback),
+      onboarding: Boolean(data.onboarding),
+      message: data.message,
+    };
+  } catch (error) {
+    console.warn("fetchPosts backend unreachable, falling back to demo feed:", error);
+    return {
+      items: DEMO_EXPLORE_POSTS.map(formatPost),
+      nextCursor: null,
+      hasMore: false,
+      feedType: "explore",
+      isFallback: true,
+      onboarding: false,
+      message: "Viewing public preview feed.",
+    };
   }
-
-  const data = await response.json();
-
-  return {
-    items: (data.items || []).map(formatPost),
-    nextCursor: data.nextCursor,
-    hasMore: Boolean(data.hasMore),
-    feedType: data.feedType,
-    isFallback: Boolean(data.isFallback),
-    onboarding: Boolean(data.onboarding),
-    message: data.message,
-  };
 }
 
 export async function fetchUserPosts(userIdOrHandle = "me", cursor = null, limit = 10) {
@@ -282,22 +377,33 @@ export async function fetchUserPosts(userIdOrHandle = "me", cursor = null, limit
     url += `&cursor=${encodeURIComponent(cursor)}`;
   }
 
-  const response = await fetch(url, {
-    headers: getAuthHeaders(),
-  });
+  try {
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch user posts: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user posts: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      items: (data.items || []).map(formatPost),
+      nextCursor: data.nextCursor,
+      hasMore: Boolean(data.hasMore),
+      feedType: "user_posts",
+    };
+  } catch (error) {
+    console.warn("fetchUserPosts backend unreachable:", error);
+    return {
+      items: [],
+      nextCursor: null,
+      hasMore: false,
+      feedType: "user_posts",
+      isFallback: true,
+    };
   }
-
-  const data = await response.json();
-
-  return {
-    items: (data.items || []).map(formatPost),
-    nextCursor: data.nextCursor,
-    hasMore: Boolean(data.hasMore),
-    feedType: "user_posts",
-  };
 }
 
 export async function fetchPostById(id) {
@@ -305,14 +411,21 @@ export async function fetchPostById(id) {
   if (/^\d+$/.test(fullId)) {
     fullId = `b0000000-0000-4000-8000-${fullId.padStart(12, "0")}`;
   }
-  const response = await fetch(`${API_URL}/posts/${encodeURIComponent(fullId)}`, {
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch post: ${response.status} ${response.statusText}`);
+  try {
+    const response = await fetch(`${API_URL}/posts/${encodeURIComponent(fullId)}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch post: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
+    return formatPost(data.item);
+  } catch (error) {
+    console.warn("fetchPostById backend unreachable, checking demo posts:", error);
+    const demo = DEMO_EXPLORE_POSTS.find((p) => p.id === id || p.id === fullId);
+    if (demo) return formatPost(demo);
+    return null;
   }
-  const data = await response.json();
-  return formatPost(data.item);
 }
 
 export async function toggleLike(postId, currentLikedState) {
@@ -425,39 +538,66 @@ export async function deletePost(postId) {
 }
 
 export async function searchPosts(query, limit = 10) {
-  const response = await fetch(
-    `${API_URL}/search/posts?q=${encodeURIComponent(query)}&limit=${limit}`,
-    {
-      headers: getAuthHeaders(),
+  try {
+    const response = await fetch(
+      `${API_URL}/search/posts?q=${encodeURIComponent(query)}&limit=${limit}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Search failed: ${response.status}`);
     }
-  );
 
-  if (!response.ok) {
-    throw new Error(`Search failed: ${response.status}`);
+    const data = await response.json();
+    return {
+      items: (data.items || []).map(formatPost),
+      nextCursor: data.nextCursor,
+    };
+  } catch (error) {
+    console.warn("searchPosts backend unreachable, filtering locally:", error);
+    const q = (query || "").toLowerCase();
+    const filtered = DEMO_EXPLORE_POSTS.filter((p) =>
+      p.text.toLowerCase().includes(q) ||
+      p.author.displayName.toLowerCase().includes(q) ||
+      p.author.handle.toLowerCase().includes(q)
+    );
+    return {
+      items: filtered.map(formatPost),
+      nextCursor: null,
+    };
   }
-
-  const data = await response.json();
-  return {
-    items: (data.items || []).map(formatPost),
-    nextCursor: data.nextCursor,
-  };
 }
 
 export async function searchUsers(query = "", limit = 10) {
-  const url = query?.trim()
-    ? `${API_URL}/search/users?q=${encodeURIComponent(query.trim())}&limit=${limit}`
-    : `${API_URL}/search/users?limit=${limit}`;
+  try {
+    const url = query?.trim()
+      ? `${API_URL}/search/users?q=${encodeURIComponent(query.trim())}&limit=${limit}`
+      : `${API_URL}/search/users?limit=${limit}`;
 
-  const response = await fetch(url, {
-    headers: getAuthHeaders(),
-  });
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
 
-  if (!response.ok) {
-    return [];
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.warn("searchUsers backend unreachable, fallback to demo authors:", error);
+    const q = (query || "").toLowerCase();
+    const demoUsers = [
+      { id: "demo-user-1", handle: "traveler_sophie", displayName: "Sophie Vance", isPrivate: false, followerCount: 1240 },
+      { id: "demo-user-2", handle: "artofvisuals", displayName: "Art of Visuals", isPrivate: false, followerCount: 8900 },
+      { id: "demo-user-3", handle: "chef_marco", displayName: "Marco Bellini", isPrivate: false, followerCount: 450 },
+    ];
+    return demoUsers.filter(
+      (u) => !q || u.displayName.toLowerCase().includes(q) || u.handle.toLowerCase().includes(q)
+    );
   }
-
-  const data = await response.json();
-  return data.items || [];
 }
 
 export async function followUser(userIdOrHandle) {
