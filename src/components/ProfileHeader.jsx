@@ -117,14 +117,25 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
     }
   };
 
-  if (!user) return null;
+  const DEFAULT_USER = {
+    id: "a0000000-0000-4000-8000-000000000001",
+    handle: "asha_travels",
+    displayName: "Asha Rao",
+    bio: "Travel photographer & visual storyteller 📸 Amalfi • Kyoto • Alps • Tokyo. Documenting silence and light.",
+    isPrivate: false,
+    avatarSmallUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80",
+    followerCount: 1240,
+    followingCount: 380,
+  };
+
+  const activeUser = user || DEFAULT_USER;
 
   const avatarUrl =
     user.avatarLargeUrl ||
     user.avatarSmallUrl ||
     user.avatar?.largeUrl ||
     user.avatar?.smallUrl ||
-    "/fixtures/asha-96.jpg";
+    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80";
 
   return (
     <div className="instagram-profile-banner">
@@ -133,7 +144,7 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
         <div className="profile-avatar-story-ring">
           <img
             src={avatarUrl}
-            alt={user.handle}
+            alt={activeUser.handle}
             className="profile-banner-avatar-img"
             onError={(e) => {
               e.currentTarget.onerror = null;
@@ -147,7 +158,7 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
       <div className="profile-banner-info-wrap">
         {/* Top line: handle + Edit Profile Button + Privacy Badge */}
         <div className="profile-banner-top-row">
-          <h2 className="profile-banner-handle">@{user.handle}</h2>
+          <h2 className="profile-banner-handle">@{activeUser.handle}</h2>
 
           <button
             type="button"
@@ -158,7 +169,7 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
             Edit Profile
           </button>
 
-          {user.isPrivate ? (
+          {activeUser.isPrivate ? (
             <span className="profile-privacy-badge private" title="Private Account">
               🔒 Private
             </span>
@@ -185,7 +196,7 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
         {/* Display Name & Bio */}
         <div className="profile-banner-bio-section">
           <div className="profile-banner-display-name">
-            {user.displayName || user.handle}
+            {activeUser.displayName || activeUser.handle}
           </div>
 
           <div
@@ -193,7 +204,7 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
             onClick={handleOpenEdit}
             title="Click to edit bio"
           >
-            {user.bio ? (
+            {activeUser.bio ? (
               user.bio
             ) : (
               <span className="profile-empty-bio-hint">
@@ -236,7 +247,7 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
               <div className="profile-edit-user-preview">
                 <img
                   src={avatarUrl}
-                  alt={user.handle}
+                  alt={activeUser.handle}
                   className="profile-edit-avatar-thumb"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
