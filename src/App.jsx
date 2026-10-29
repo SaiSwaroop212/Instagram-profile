@@ -40,9 +40,9 @@ export function App() {
   const routePostId = routeMatch ? decodeURIComponent(routeMatch[1]) : null; 
 
   const [currentUser, setCurrentUser] = useState(getStoredUser());
-  const [activeTab, setActiveTab] = useState(getStoredUser() ? "my-posts" : "explore");
+  const [activeTab, setActiveTab] = useState("explore");
   const [userPostCount, setUserPostCount] = useState(0);
-  const activeTabRef = useRef(getStoredUser() ? "my-posts" : "explore");
+  const activeTabRef = useRef("explore");
 
   const [posts, setPosts] = useState([]); 
   const [nextCursor, setNextCursor] = useState(null); 
@@ -427,12 +427,12 @@ export function App() {
           }}
         />
 
-        {/* Instagram Profile Navigation Tabs */}
+        {/* Instagram Feed Navigation Tabs */}
         <div className="feed-navigation-tabs">
           <button
             type="button"
-            className={`feed-tab-btn ${activeTab === "my-posts" || activeTab === "explore" ? "active" : ""}`}
-            onClick={() => handleTabChange("my-posts")}
+            className={`feed-tab-btn ${activeTab === "explore" ? "active" : ""}`}
+            onClick={() => handleTabChange("explore")}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <rect x="3" y="3" width="7" height="7"></rect>
@@ -440,7 +440,7 @@ export function App() {
               <rect x="14" y="14" width="7" height="7"></rect>
               <rect x="3" y="14" width="7" height="7"></rect>
             </svg>
-            <span>POSTS</span>
+            <span>FEED</span>
           </button>
 
           <button
@@ -455,6 +455,18 @@ export function App() {
               <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
             <span>FOLLOWING</span>
+          </button>
+
+          <button
+            type="button"
+            className={`feed-tab-btn ${activeTab === "my-posts" ? "active" : ""}`}
+            onClick={() => handleTabChange("my-posts")}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>MY POSTS</span>
           </button>
         </div>
         {/* Empty States for My Posts & Following */}

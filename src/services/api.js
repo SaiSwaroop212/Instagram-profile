@@ -1,4 +1,86 @@
-const API_URL = "http://localhost:3001";
+const API_URL =
+  typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL
+    : "http://localhost:3001";
+
+export const DEMO_EXPLORE_POSTS = [
+  {
+    id: "demo-post-1",
+    author: { id: "demo-user-1", handle: "traveler_sophie", displayName: "Sophie Laurent" },
+    text: "Sunrise above the clouds in the Swiss Alps 🏔️✨ #travel #alps #adventure #wanderlust",
+    createdAt: new Date().toISOString(),
+    media: [
+      { id: "m1-1", largeUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1080&q=80", position: 0 },
+      { id: "m1-2", largeUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1080&q=80", position: 1 },
+      { id: "m1-3", largeUrl: "https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=1080&q=80", position: 2 },
+    ],
+    likeCount: 142,
+    replyCount: 18,
+    kind: "original",
+  },
+  {
+    id: "demo-post-2",
+    author: { id: "demo-user-2", handle: "artofvisuals", displayName: "Art of Visuals" },
+    text: "Moody architecture and neon reflections in the heart of Tokyo 🇯🇵🌧️ #tokyo #architecture #street",
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    media: [
+      { id: "m2-1", largeUrl: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=1080&q=80", position: 0 },
+      { id: "m2-2", largeUrl: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1080&q=80", position: 1 },
+    ],
+    likeCount: 289,
+    replyCount: 34,
+    kind: "original",
+  },
+  {
+    id: "demo-post-3",
+    author: { id: "demo-user-3", handle: "chef_marco", displayName: "Marco Bellini" },
+    text: "Handmade tagliatelle al tartufo fresco. Perfection takes time and love 🍝🇮🇹 #culinary #food #chef",
+    createdAt: new Date(Date.now() - 7200000).toISOString(),
+    media: [
+      { id: "m3-1", largeUrl: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=1080&q=80", position: 0 },
+      { id: "m3-2", largeUrl: "https://images.unsplash.com/photo-1546549032-9571cd6b27df?w=1080&q=80", position: 1 },
+    ],
+    likeCount: 95,
+    replyCount: 12,
+    kind: "original",
+  },
+  {
+    id: "demo-post-4",
+    author: { id: "demo-user-4", handle: "astral_skies", displayName: "Astral Skies" },
+    text: "Milky Way core over the desert silence. 25-second exposure at f/1.8 🌌✨ #astrophotography #space",
+    createdAt: new Date(Date.now() - 10800000).toISOString(),
+    media: [
+      { id: "m4-1", largeUrl: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1080&q=80", position: 0 },
+    ],
+    likeCount: 412,
+    replyCount: 52,
+    kind: "original",
+  },
+  {
+    id: "demo-post-5",
+    author: { id: "demo-user-5", handle: "coffee_and_craft", displayName: "Elena Rostova" },
+    text: "Morning pour over with Ethiopian Yirgacheffe notes of bergamot and jasmine ☕🌿 #coffee #morning",
+    createdAt: new Date(Date.now() - 14400000).toISOString(),
+    media: [
+      { id: "m5-1", largeUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=1080&q=80", position: 0 },
+    ],
+    likeCount: 167,
+    replyCount: 21,
+    kind: "original",
+  },
+  {
+    id: "demo-post-6",
+    author: { id: "demo-user-6", handle: "minimal_lines", displayName: "Koushik Sen" },
+    text: "Geometric shadows and brutalist curves in concrete harmony 📐🏛️ #minimalism #architecture",
+    createdAt: new Date(Date.now() - 18000000).toISOString(),
+    media: [
+      { id: "m6-1", largeUrl: "https://images.unsplash.com/photo-1513694203232-719a280e022f?w=1080&q=80", position: 0 },
+    ],
+    likeCount: 224,
+    replyCount: 19,
+    kind: "original",
+  },
+];
 
 // ============================================================================
 // Auth Storage Helpers
@@ -255,25 +337,38 @@ export async function fetchPosts(cursor = null, limit = 10, scope = null) {
     url += `&scope=${encodeURIComponent(scope)}`;
   }
 
-  const response = await fetch(url, {
-    headers: getAuthHeaders(),
-  });
+  try {
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch posts: ${response.status} ${response.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch posts: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      items: (data.items || []).map(formatPost),
+      nextCursor: data.nextCursor,
+      hasMore: Boolean(data.hasMore),
+      feedType: data.feedType,
+      isFallback: Boolean(data.isFallback),
+      onboarding: Boolean(data.onboarding),
+      message: data.message,
+    };
+  } catch (err) {
+    console.warn("fetchPosts fallback to demo feed:", err);
+    return {
+      items: DEMO_EXPLORE_POSTS.map(formatPost),
+      nextCursor: null,
+      hasMore: false,
+      feedType: "explore",
+      isFallback: true,
+      onboarding: false,
+      message: "Viewing community feed preview.",
+    };
   }
-
-  const data = await response.json();
-
-  return {
-    items: (data.items || []).map(formatPost),
-    nextCursor: data.nextCursor,
-    hasMore: Boolean(data.hasMore),
-    feedType: data.feedType,
-    isFallback: Boolean(data.isFallback),
-    onboarding: Boolean(data.onboarding),
-    message: data.message,
-  };
 }
 
 export async function fetchUserPosts(userIdOrHandle = "me", cursor = null, limit = 10) {
