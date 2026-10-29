@@ -12,7 +12,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "npm --prefix Backend run test",
-    "test:e2e": "npm --prefix Backend run test:e2e"
+    "test:e2e": "npm --prefix Backend run test:e2e",
+    "test:all": "npm --prefix Backend run test:all",
+    "all": "concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm run start:dev\" \"npm run dev\""
   },
   "dependencies": {
     "react": "^18.3.1",

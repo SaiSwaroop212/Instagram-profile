@@ -20,7 +20,8 @@ import {
   searchPosts, 
   createReply, 
   initDefaultAuth, 
-  getStoredUser 
+  getStoredUser,
+  API_URL
 } from "./services/api"; 
 import { useDebounce } from "./hooks/useDebounce"; 
 import { useInfiniteScroll } from "./hooks/useInfiniteScroll"; 
@@ -120,7 +121,7 @@ export function App() {
       } 
     } catch (err) { 
       console.error("Error fetching posts:", err); 
-      setErrorMessage("Unable to connect to backend server (http://localhost:3001). Please make sure the backend is running."); 
+      setErrorMessage(`Unable to connect to backend server (${API_URL}). Please make sure the backend is running.`); 
     } finally { 
       setIsLoading(false); 
       isFetchingRef.current = false; 

@@ -11,8 +11,8 @@ export const corsOptions: CorsOptions = {
       return callback(null, true);
     }
 
-    // Allow configured production frontend origin
-    if (requestOrigin === config.frontendOrigin) {
+    // Allow configured production frontend origin or any vercel app deployment
+    if (requestOrigin === config.frontendOrigin || (requestOrigin && /^https:\/\/[a-zA-Z0-9.-]+\.vercel\.app$/.test(requestOrigin))) {
       return callback(null, true);
     }
 

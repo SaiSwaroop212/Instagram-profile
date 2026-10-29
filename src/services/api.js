@@ -1,7 +1,16 @@
-const API_URL =
-  typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL
-    ? import.meta.env.VITE_API_URL
-    : "http://localhost:3001";
+export const API_URL = (() => {
+  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (typeof window !== "undefined" && window.location) {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") {
+      return "http://localhost:3001";
+    }
+  }
+  return "https://instagram-profile-3cn1.onrender.com";
+})();
+
 
 export const DEMO_EXPLORE_POSTS = [
   {
