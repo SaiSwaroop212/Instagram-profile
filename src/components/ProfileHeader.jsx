@@ -131,10 +131,10 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
   const activeUser = user || DEFAULT_USER;
 
   const avatarUrl =
-    user.avatarLargeUrl ||
-    user.avatarSmallUrl ||
-    user.avatar?.largeUrl ||
-    user.avatar?.smallUrl ||
+    activeUser.avatarLargeUrl ||
+    activeUser.avatarSmallUrl ||
+    activeUser.avatar?.largeUrl ||
+    activeUser.avatar?.smallUrl ||
     "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80";
 
   return (
@@ -255,7 +255,7 @@ export function ProfileHeader({ postCount = 0, onProfileUpdated }) {
                   }}
                 />
                 <div className="profile-edit-meta">
-                  <strong>@{user.handle}</strong>
+                  <strong>@{activeUser.handle}</strong>
                   <span>Update your public presence</span>
                 </div>
               </div>
