@@ -14,6 +14,8 @@ import {
   unfollowUser,
   acceptFollowRequest,
   rejectFollowRequest,
+  fetchSessions,
+  revokeSession,
 } from "../services/api";
 
 export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated }) {
@@ -36,6 +38,7 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
   const [passwordInput, setPasswordInput] = useState("Password123!");
   const [isPrivateInput, setIsPrivateInput] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [sessions, setSessions] = useState([]);
 
   // User search & follow dropdown state
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -324,6 +327,23 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
       window.location.reload();
     } catch (err) {
       alert(`Deactivation failed: ${err.message}`);
+    }
+  };
+
+  useEffect(() => {
+    if (showAuthModal && currentUser) {
+      fetchSessions()
+        .then((res) => setSessions(res.sessions || []))
+        .catch(() => {});
+    }
+  }, [showAuthModal, currentUser]);
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      await revokeSession(sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    } catch (err) {
+      alert(`Could not log out device: ${err.message}`);
     }
   };
 
@@ -686,26 +706,53 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
                           eventType === "follow_request" ? "notif-request-item" : ""
                         }`}
                       >
-                        <img
-                          src={avatarUrl}
-                          alt={actorHandle}
-                          className="notif-avatar"
-                          onError={(e) => {
-                            e.currentTarget.onerror = null;
-                            e.currentTarget.src = `https://picsum.photos/seed/${actorHandle}/150/150`;
-                          }}
-                        />
+                        {eventType === "NEW_LOGIN" || eventType === "new_login" ? (
+                          <div
+                            className="notif-avatar"
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              background: "#eff6ff",
+                              borderRadius: "50%",
+                              fontSize: "16px",
+                            }}
+                          >
+                            🛡️
+                          </div>
+                        ) : (
+                          <img
+                            src={avatarUrl}
+                            alt={actorHandle}
+                            className="notif-avatar"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = `https://picsum.photos/seed/${actorHandle}/150/150`;
+                            }}
+                          />
+                        )}
                         <div className="notif-content">
                           <div className="notif-text-row">
-                            <strong>@{actorHandle}</strong>{" "}
-                            {eventType === "follow" && "started following you."}
-                            {eventType === "like" && "liked your post."}
-                            {eventType === "reply" && "replied to your post."}
-                            {eventType === "repost" && "reposted your post."}
-                            {eventType === "follow_request" && "requested to follow you."}
-                            {!["follow", "like", "reply", "repost", "follow_request"].includes(
-                              eventType
-                            ) && "interacted with your profile."}
+                            {eventType === "NEW_LOGIN" || eventType === "new_login" ? (
+                              <span>
+                                <strong>Security Alert:</strong> New login from{" "}
+                                <strong>{notif.metadata?.browser || "Browser"}</strong> on{" "}
+                                <strong>{notif.metadata?.os || "device"}</strong>{" "}
+                                ({notif.metadata?.deviceType || "device"})
+                              </span>
+                            ) : (
+                              <>
+                                <strong>@{actorHandle}</strong>{" "}
+                                {eventType === "follow" && "started following you."}
+                                {eventType === "like" && "liked your post."}
+                                {eventType === "reply" && "replied to your post."}
+                                {eventType === "repost" && "reposted your post."}
+                                {eventType === "follow_request" && "requested to follow you."}
+                                {!["follow", "like", "reply", "repost", "follow_request"].includes(
+                                  eventType
+                                ) && "interacted with your profile."}
+                              </>
+                            )}
                           </div>
                           {eventType === "follow_request" && (
                             <div className="notif-request-actions">
@@ -837,6 +884,98 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
                   >
                     Deactivate
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Active Logged-in Devices Section */}
+            {currentUser && sessions.length > 0 && (
+              <div
+                style={{
+                  margin: "12px 16px",
+                  padding: "12px",
+                  background: "#f9fafb",
+                  borderRadius: "8px",
+                  border: "1px solid #e5e7eb",
+                  fontSize: "13px",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 600,
+                    color: "#374151",
+                    marginBottom: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span>💻 Logged-in Devices ({sessions.length})</span>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                    maxHeight: "140px",
+                    overflowY: "auto",
+                  }}
+                >
+                  {sessions.map((sess) => (
+                    <div
+                      key={sess.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        background: "#fff",
+                        padding: "6px 10px",
+                        borderRadius: "6px",
+                        border: "1px solid #f3f4f6",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 500, color: "#111827" }}>
+                          {sess.browser} on {sess.os}
+                          {sess.isCurrent && (
+                            <span
+                              style={{
+                                marginLeft: "6px",
+                                fontSize: "11px",
+                                background: "#dcfce7",
+                                color: "#15803d",
+                                padding: "1px 6px",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              This device
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                          {sess.deviceType} • {new Date(sess.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                        </div>
+                      </div>
+                      {!sess.isCurrent && (
+                        <button
+                          type="button"
+                          onClick={() => handleRevokeSession(sess.id)}
+                          style={{
+                            background: "none",
+                            border: "1px solid #ef4444",
+                            color: "#ef4444",
+                            borderRadius: "4px",
+                            padding: "2px 8px",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Log out
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

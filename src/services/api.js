@@ -672,3 +672,21 @@ export async function markAllNotificationsRead() {
   if (!response.ok) return { count: 0 };
   return await response.json();
 }
+
+
+export async function fetchSessions() {
+  const response = await fetch(`${API_URL}/auth/sessions`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) return { sessions: [] };
+  return await response.json();
+}
+
+export async function revokeSession(sessionId) {
+  const response = await fetch(`${API_URL}/auth/sessions/${sessionId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to revoke session");
+  return await response.json();
+}
