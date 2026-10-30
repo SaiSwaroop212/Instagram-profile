@@ -7,7 +7,9 @@ export function PostGrid({
   isLoading,
   hasMore,
   onPostClick,
-  sentinelRef
+  sentinelRef,
+  error,
+  onRetry,
 }) {
   return (
     <>
@@ -26,7 +28,29 @@ export function PostGrid({
         {isLoading && <LoadingSkeleton count={3} />}
       </section>
 
-      {posts.length === 0 && !isLoading && (
+      {error && !isLoading && posts.length === 0 && (
+        <div className="no-posts-message error-message">
+          <p style={{ color: "#ed4956", marginBottom: "12px", fontWeight: "500" }}>{error}</p>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              style={{
+                padding: "8px 16px",
+                background: "#0095f6",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "600",
+                cursor: "pointer",
+              }}
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
+      {!error && posts.length === 0 && !isLoading && (
         <div className="no-posts-message">
           <p>No posts found</p>
         </div>
@@ -36,6 +60,7 @@ export function PostGrid({
       <div
         id="scroll-sentinel"
         ref={sentinelRef}
+        style={{ height: "20px", width: "100%", pointerEvents: "none" }}
         aria-hidden="true"
       />
     </>

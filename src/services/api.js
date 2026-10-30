@@ -1,102 +1,674 @@
-const API_URL = "https://jsonplaceholder.typicode.com/photos";
+export const API_URL = (() => {
+  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (typeof window !== "undefined" && window.location) {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") {
+      return "http://localhost:3001";
+    }
+  }
+  return "https://instagram-profile-3cn1.onrender.com";
+})();
 
-const USERNAMES = [
-  "aesthetic_visuals",
-  "wanderlust_nomad",
-  "urban_frames",
-  "minimal_tones",
-  "goldenhour_moments",
-  "lens_and_light",
-  "daily_captures",
-  "streetlife_collective",
-  "chromatic_studio",
-  "serene_horizon",
-  "monochrome_diary",
-  "velvet_vibe",
-  "nordic_tales",
-  "solitary_traveler",
-  "prism_perspectives",
-  "neon_whispers",
-  "analog_nostalgia",
-  "wildflower_soul"
+
+export const DEMO_EXPLORE_POSTS = [
+  {
+    id: "demo-post-1",
+    author: { id: "demo-user-1", handle: "traveler_sophie", displayName: "Sophie Laurent" },
+    text: "Sunrise above the clouds in the Swiss Alps 🏔️✨ #travel #alps #adventure #wanderlust",
+    createdAt: new Date().toISOString(),
+    media: [
+      { id: "m1-1", largeUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1080&q=80", position: 0 },
+      { id: "m1-2", largeUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1080&q=80", position: 1 },
+      { id: "m1-3", largeUrl: "https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=1080&q=80", position: 2 },
+    ],
+    likeCount: 142,
+    replyCount: 18,
+    kind: "original",
+  },
+  {
+    id: "demo-post-2",
+    author: { id: "demo-user-2", handle: "artofvisuals", displayName: "Art of Visuals" },
+    text: "Moody architecture and neon reflections in the heart of Tokyo 🇯🇵🌧️ #tokyo #architecture #street",
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    media: [
+      { id: "m2-1", largeUrl: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=1080&q=80", position: 0 },
+      { id: "m2-2", largeUrl: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1080&q=80", position: 1 },
+    ],
+    likeCount: 289,
+    replyCount: 34,
+    kind: "original",
+  },
+  {
+    id: "demo-post-3",
+    author: { id: "demo-user-3", handle: "chef_marco", displayName: "Marco Bellini" },
+    text: "Handmade tagliatelle al tartufo fresco. Perfection takes time and love 🍝🇮🇹 #culinary #food #chef",
+    createdAt: new Date(Date.now() - 7200000).toISOString(),
+    media: [
+      { id: "m3-1", largeUrl: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=1080&q=80", position: 0 },
+      { id: "m3-2", largeUrl: "https://images.unsplash.com/photo-1546549032-9571cd6b27df?w=1080&q=80", position: 1 },
+    ],
+    likeCount: 95,
+    replyCount: 12,
+    kind: "original",
+  },
+  {
+    id: "demo-post-4",
+    author: { id: "demo-user-4", handle: "astral_skies", displayName: "Astral Skies" },
+    text: "Milky Way core over the desert silence. 25-second exposure at f/1.8 🌌✨ #astrophotography #space",
+    createdAt: new Date(Date.now() - 10800000).toISOString(),
+    media: [
+      { id: "m4-1", largeUrl: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1080&q=80", position: 0 },
+    ],
+    likeCount: 412,
+    replyCount: 52,
+    kind: "original",
+  },
+  {
+    id: "demo-post-5",
+    author: { id: "demo-user-5", handle: "coffee_and_craft", displayName: "Elena Rostova" },
+    text: "Morning pour over with Ethiopian Yirgacheffe notes of bergamot and jasmine ☕🌿 #coffee #morning",
+    createdAt: new Date(Date.now() - 14400000).toISOString(),
+    media: [
+      { id: "m5-1", largeUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=1080&q=80", position: 0 },
+    ],
+    likeCount: 167,
+    replyCount: 21,
+    kind: "original",
+  },
+  {
+    id: "demo-post-6",
+    author: { id: "demo-user-6", handle: "minimal_lines", displayName: "Koushik Sen" },
+    text: "Geometric shadows and brutalist curves in concrete harmony 📐🏛️ #minimalism #architecture",
+    createdAt: new Date(Date.now() - 18000000).toISOString(),
+    media: [
+      { id: "m6-1", largeUrl: "https://images.unsplash.com/photo-1513694203232-719a280e022f?w=1080&q=80", position: 0 },
+    ],
+    likeCount: 224,
+    replyCount: 19,
+    kind: "original",
+  },
 ];
 
-const CATEGORIES = [
-  "Photography",
-  "Visual Arts",
-  "Travel & Adventure",
-  "Street Life",
-  "Architecture",
-  "Minimalism",
-  "Portraits",
-  "Nature & Wild",
-  "Editorial",
-  "Lifestyle & Design"
-];
+// ============================================================================
+// Auth Storage Helpers
+// ============================================================================
 
-const HASHTAG_SETS = [
-  ["#photography", "#visualsoflife", "#artofvisuals", "#lightandshadow"],
-  ["#travelphotography", "#wanderlust", "#exploretheworld", "#roamtheplanet"],
-  ["#streetphotography", "#citygrammers", "#urbanandstreet", "#streetclassics"],
-  ["#minimalism", "#minimalzine", "#cleanandpure", "#simplicity"],
-  ["#goldenhour", "#sunsetlovers", "#warmtones", "#magichour"],
-  ["#lensculture", "#cinematic", "#moodygrams", "#thevisualcollective"],
-  ["#architecturelovers", "#linesandforms", "#geometric", "#archdaily"],
-  ["#naturevisuals", "#earthoutdoors", "#wildlifephotography", "#peacefulvibes"]
-];
+export function getAuthToken() {
+  return localStorage.getItem("social_feed_token");
+}
 
-const TIMESTAMPS = [
-  "15 MINUTES AGO",
-  "45 MINUTES AGO",
-  "2 HOURS AGO",
-  "4 HOURS AGO",
-  "7 HOURS AGO",
-  "11 HOURS AGO",
-  "1 DAY AGO",
-  "2 DAYS AGO",
-  "3 DAYS AGO",
-  "5 DAYS AGO",
-  "1 WEEK AGO"
-];
+export function setAuthToken(token) {
+  if (token) {
+    localStorage.setItem("social_feed_token", token);
+  } else {
+    localStorage.removeItem("social_feed_token");
+  }
+}
 
-/**
- * Format raw JSONPlaceholder photo into an Instagram post with dynamic data
- */
-export function formatPost(item) {
-  const userIdx = (item.id - 1) % USERNAMES.length;
-  const catIdx = (item.id - 1) % CATEGORIES.length;
-  const tagIdx = (item.id - 1) % HASHTAG_SETS.length;
-  const timeIdx = (item.id - 1) % TIMESTAMPS.length;
+export function getStoredUser() {
+  try {
+    const raw = localStorage.getItem("social_feed_user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
-  const formattedCaption =
-    item.title.charAt(0).toUpperCase() + item.title.slice(1) + ".";
+export function setStoredUser(user) {
+  if (user) {
+    localStorage.setItem("social_feed_user", JSON.stringify(user));
+  } else {
+    localStorage.removeItem("social_feed_user");
+  }
+}
 
-  return {
-    id: item.id,
-    albumId: item.albumId,
-    title: item.title,
-    caption: formattedCaption,
-    username: `${USERNAMES[userIdx]}_${(item.id % 99) + 1}`,
-    profileImage: `https://picsum.photos/100/100?random=${item.id + 500}`,
-    category: CATEGORIES[catIdx],
-    hashtags: HASHTAG_SETS[tagIdx].join(" "),
-    timestamp: TIMESTAMPS[timeIdx],
-    imageUrl: `https://picsum.photos/600/600?random=${item.id}`
-  };
+export function getAuthHeaders(customHeaders = {}) {
+  const headers = { ...customHeaders };
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
 }
 
 /**
- * Fetch paginated posts from JSONPlaceholder photos API
- * @param {number} page Page number (1-based)
- * @param {number} limit Number of posts per request (default: 9)
+ * Initializes default user session (Asha) if none exists,
+ * ensuring all like, follow, and reply operations work smoothly.
  */
-export async function fetchPosts(page = 1, limit = 9) {
-  const response = await fetch(`${API_URL}?_page=${page}&_limit=${limit}`);
+export async function initDefaultAuth() {
+  const existingToken = getAuthToken();
+  if (existingToken) {
+    try {
+      // Validate session with /auth/me
+      const res = await fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${existingToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStoredUser(data.user);
+        return data.user;
+      }
+    } catch {
+      // Token expired or invalid
+    }
+  }
+
+  // If no valid session, remain guest (do not auto-login as Asha)
+  setAuthToken(null);
+  setStoredUser(null);
+  return null;
+}
+
+export async function loginUser(handle, password) {
+  const response = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ handle, password }),
+  });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch posts: ${response.statusText}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Login failed: ${response.status}`);
   }
 
   const data = await response.json();
-  return data.map(formatPost);
+  setAuthToken(data.token);
+  setStoredUser(data.user);
+  return data;
+}
+
+export async function registerUser({ handle, displayName, password, isPrivate = false }) {
+  const response = await fetch(`${API_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ handle, displayName, password, isPrivate: Boolean(isPrivate) }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Registration failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  setAuthToken(data.token);
+  setStoredUser(data.user);
+  return data;
+}
+
+export async function logoutUser() {
+  const token = getAuthToken();
+  if (token) {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+  }
+  setAuthToken(null);
+  setStoredUser(null);
+}
+
+export async function deactivateCurrentUser() {
+  const response = await fetch(`${API_URL}/users/me/deactivate`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Deactivation failed: ${response.status}`);
+  }
+
+  setAuthToken(null);
+  setStoredUser(null);
+  return await response.json();
+}
+
+export async function fetchUserProfile(userIdOrHandle = "me") {
+  const response = await fetch(`${API_URL}/users/${encodeURIComponent(userIdOrHandle)}`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch user profile: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.item || data.user || data;
+}
+
+export async function updateUserProfile(updateData) {
+  const response = await fetch(`${API_URL}/users/me`, {
+    method: "PATCH",
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(updateData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to update profile: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const updatedItem = data.item || data.user || data;
+
+  // Merge and update local stored user
+  const current = getStoredUser() || {};
+  const merged = {
+    ...current,
+    ...updatedItem,
+    bio: updatedItem.bio !== undefined ? updatedItem.bio : current.bio,
+    displayName: updatedItem.displayName || current.displayName,
+    isPrivate: updatedItem.isPrivate !== undefined ? updatedItem.isPrivate : current.isPrivate,
+  };
+  setStoredUser(merged);
+  window.dispatchEvent(new CustomEvent("user-updated", { detail: merged }));
+  return merged;
+}
+
+// ============================================================================
+// Post Formatting
+// ============================================================================
+
+function resolveImageUrl(item, index = 0) {
+  if (item.media && item.media.length > 0) {
+    const m = item.media[index] || item.media[0];
+    if (m.largeUrl && !m.largeUrl.startsWith("/fixtures/")) {
+      return m.largeUrl;
+    }
+    const seed = (item.id || "").replace(/[^0-9]/g, "").slice(-4) || "100";
+    return `https://picsum.photos/seed/post${seed}/800/800`;
+  }
+  if (item.imageUrl && !item.imageUrl.startsWith("/fixtures/")) {
+    return item.imageUrl;
+  }
+  const seed = (item.id || "").replace(/[^0-9]/g, "").slice(-4) || "200";
+  return `https://picsum.photos/seed/post${seed}/800/800`;
+}
+
+function resolveProfileImage(author, id) {
+  if (author?.avatar?.smallUrl && !author.avatar.smallUrl.startsWith("/fixtures/")) {
+    return author.avatar.smallUrl;
+  }
+  const seed = (author?.id || id || "user").replace(/[^0-9]/g, "").slice(-3) || "50";
+  return `https://picsum.photos/seed/user${seed}/150/150`;
+}
+
+function deriveCategory(text, kind) {
+  if (kind === "reply") return "Reply";
+  if (kind === "repost") return "Repost";
+  const lower = (text || "").toLowerCase();
+  if (lower.includes("travel") || lower.includes("amalfi") || lower.includes("alps") || lower.includes("wanderlust")) return "Travel";
+  if (lower.includes("street") || lower.includes("tokyo") || lower.includes("kyoto") || lower.includes("neon")) return "Street Life";
+  if (lower.includes("nature") || lower.includes("wilderness") || lower.includes("forest") || lower.includes("mountain")) return "Nature";
+  if (lower.includes("food") || lower.includes("pasta") || lower.includes("chef") || lower.includes("coffee")) return "Culinary";
+  if (lower.includes("astro") || lower.includes("milky") || lower.includes("star") || lower.includes("space")) return "Astrophotography";
+  if (lower.includes("architecture") || lower.includes("minimalism") || lower.includes("geometry") || lower.includes("design")) return "Architecture";
+  if (lower.includes("aerial") || lower.includes("drone") || lower.includes("ocean")) return "Aerial";
+  return "Photography";
+}
+
+export function formatPost(item) {
+  return {
+    id: item.id,
+    caption: item.text || item.caption || "",
+    username: item.author?.handle || item.author?.username || item.author?.displayName || "user",
+    authorId: item.author?.id,
+    displayName: item.author?.displayName || item.author?.handle || "User",
+    profileImage: resolveProfileImage(item.author, item.id),
+    category: deriveCategory(item.text, item.kind),
+    hashtags: item.text && item.text.includes("#") ? "" : "#photography #visualsoflife #artofvisuals",
+    timestamp: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "",
+    imageUrl: resolveImageUrl(item, 0),
+    media: item.media || [],
+    likeCount: item.likeCount ?? 0,
+    replyCount: item.replyCount ?? 0,
+    likedByViewer: Boolean(item.likedByViewer),
+    kind: item.kind || "original",
+    version: item.version ?? 1,
+  };
+}
+
+// ============================================================================
+// Core API Calls (Personalized Feed, Likes, Replies, Follows)
+// ============================================================================
+
+export async function fetchPosts(cursor = null, limit = 10, scope = null) {
+  let url = `${API_URL}/feed?limit=${limit}`;
+
+  if (cursor) {
+    url += `&cursor=${encodeURIComponent(cursor)}`;
+  }
+  if (scope) {
+    url += `&scope=${encodeURIComponent(scope)}`;
+  }
+
+  try {
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch posts: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      items: (data.items || []).map(formatPost),
+      nextCursor: data.nextCursor,
+      hasMore: Boolean(data.hasMore),
+      feedType: data.feedType,
+      isFallback: Boolean(data.isFallback),
+      onboarding: Boolean(data.onboarding),
+      message: data.message,
+    };
+  } catch (err) {
+    console.warn("fetchPosts fallback to demo feed:", err);
+    return {
+      items: DEMO_EXPLORE_POSTS.map(formatPost),
+      nextCursor: null,
+      hasMore: false,
+      feedType: "explore",
+      isFallback: true,
+      onboarding: false,
+      message: "Viewing community feed preview.",
+    };
+  }
+}
+
+export async function fetchUserPosts(userIdOrHandle = "me", cursor = null, limit = 10) {
+  let url = `${API_URL}/users/${encodeURIComponent(userIdOrHandle)}/posts?limit=${limit}`;
+  if (cursor) {
+    url += `&cursor=${encodeURIComponent(cursor)}`;
+  }
+
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch user posts: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  return {
+    items: (data.items || []).map(formatPost),
+    nextCursor: data.nextCursor,
+    hasMore: Boolean(data.hasMore),
+    feedType: "user_posts",
+  };
+}
+
+export async function fetchPostById(id) {
+  let fullId = String(id).trim();
+  if (/^\d+$/.test(fullId)) {
+    fullId = `b0000000-0000-4000-8000-${fullId.padStart(12, "0")}`;
+  }
+  const response = await fetch(`${API_URL}/posts/${encodeURIComponent(fullId)}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch post: ${response.status} ${response.statusText}`);
+  }
+  const data = await response.json();
+  return formatPost(data.item);
+}
+
+export async function toggleLike(postId, currentLikedState) {
+  const method = currentLikedState ? "DELETE" : "POST";
+  const response = await fetch(`${API_URL}/posts/${postId}/like`, {
+    method,
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update like: ${response.status} ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+export async function fetchReplies(postId, limit = 10) {
+  const response = await fetch(`${API_URL}/posts/${postId}/replies?limit=${limit}`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch replies: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return {
+    items: (data.items || []).map(formatPost),
+    nextCursor: data.nextCursor,
+  };
+}
+
+export async function createReply(postId, text) {
+  const response = await fetch(`${API_URL}/posts`, {
+    method: "POST",
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({
+      kind: "reply",
+      text,
+      replyToId: postId,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create reply: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return formatPost(data.item);
+}
+
+export async function createPost({ text, kind = "original", media = [] }) {
+  const body = {
+    kind,
+    text: text?.trim(),
+  };
+
+  if (media && media.length > 0) {
+    body.media = media;
+  }
+
+  const response = await fetch(`${API_URL}/posts`, {
+    method: "POST",
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to create post: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return formatPost(data.item);
+}
+
+export async function updatePost(postId, text, version) {
+  const body = { text: text?.trim() };
+  if (version !== undefined && version !== null) {
+    body.version = version;
+  }
+
+  const response = await fetch(`${API_URL}/posts/${encodeURIComponent(postId)}`, {
+    method: "PATCH",
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to update post: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return formatPost(data.item);
+}
+
+export async function deletePost(postId) {
+  const response = await fetch(`${API_URL}/posts/${encodeURIComponent(postId)}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to delete post: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export async function searchPosts(query, limit = 10) {
+  const response = await fetch(
+    `${API_URL}/search/posts?q=${encodeURIComponent(query)}&limit=${limit}`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Search failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return {
+    items: (data.items || []).map(formatPost),
+    nextCursor: data.nextCursor,
+  };
+}
+
+export async function searchUsers(query = "", limit = 10) {
+  const url = query?.trim()
+    ? `${API_URL}/search/users?q=${encodeURIComponent(query.trim())}&limit=${limit}`
+    : `${API_URL}/search/users?limit=${limit}`;
+
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const data = await response.json();
+  return data.items || [];
+}
+
+export async function followUser(userIdOrHandle) {
+  const response = await fetch(`${API_URL}/users/${encodeURIComponent(userIdOrHandle)}/follow`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to follow user: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export async function unfollowUser(userIdOrHandle) {
+  const response = await fetch(`${API_URL}/users/${encodeURIComponent(userIdOrHandle)}/follow`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to unfollow user: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export async function acceptFollowRequest(requesterIdOrHandle) {
+  const response = await fetch(
+    `${API_URL}/users/requests/${encodeURIComponent(requesterIdOrHandle)}/accept`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to accept follow request: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export async function rejectFollowRequest(requesterIdOrHandle) {
+  const response = await fetch(
+    `${API_URL}/users/requests/${encodeURIComponent(requesterIdOrHandle)}/reject`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to reject follow request: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export async function checkIsFollowing(userIdOrHandle) {
+  try {
+    const response = await fetch(`${API_URL}/users/${encodeURIComponent(userIdOrHandle)}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      return { following: false, status: "none" };
+    }
+    const data = await response.json();
+    const rel = data.item?.relationship || data.relationship;
+    const isFollowing = Boolean(data.item?.following ?? rel?.following);
+    return {
+      following: isFollowing,
+      status: rel?.status || (isFollowing ? "accepted" : "none"),
+    };
+  } catch {
+    return { following: false, status: "none" };
+  }
+}
+
+// ============================================================================
+// Notifications API Calls
+// ============================================================================
+
+export async function fetchNotifications() {
+  const response = await fetch(`${API_URL}/notifications`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) return { items: [] };
+  return await response.json();
+}
+
+export async function fetchUnreadCount() {
+  const response = await fetch(`${API_URL}/notifications/unread-count`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) return { unreadCount: 0 };
+  return await response.json();
+}
+
+export async function markAllNotificationsRead() {
+  const response = await fetch(`${API_URL}/notifications/read-all`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) return { count: 0 };
+  return await response.json();
 }
