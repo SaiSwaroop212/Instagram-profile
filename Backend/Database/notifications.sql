@@ -25,12 +25,12 @@ CREATE TABLE notifications (
     -- Constraints
     CONSTRAINT uq_notifications_source_event UNIQUE (source_event_id),
     CONSTRAINT ck_notifications_valid_type CHECK (
-        event_type IN ('like', 'reply', 'repost', 'follow')
+        event_type IN ('like', 'reply', 'repost', 'follow', 'follow_request')
     ),
     -- like, reply, and repost MUST reference a post; follow MUST NOT reference a post
     CONSTRAINT ck_notifications_post_target CHECK (
         (event_type IN ('like', 'reply', 'repost') AND post_id IS NOT NULL) OR
-        (event_type = 'follow' AND post_id IS NULL)
+        (event_type IN ('follow', 'follow_request') AND post_id IS NULL)
     ),
     -- Actors should not receive notifications for actions on their own content
     CONSTRAINT ck_notifications_no_self_notification CHECK (
