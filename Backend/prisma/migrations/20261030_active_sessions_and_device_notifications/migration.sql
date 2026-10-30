@@ -29,3 +29,4 @@ ALTER TABLE "notifications" DROP CONSTRAINT IF EXISTS "ck_notifications_no_self_
 ALTER TABLE "notifications" ADD CONSTRAINT "ck_notifications_no_self_notification" CHECK (
     "recipient_id" <> "actor_id" OR "event_type" IN ('NEW_LOGIN', 'new_login')
 );
+

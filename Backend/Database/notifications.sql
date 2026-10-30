@@ -20,21 +20,22 @@ CREATE TABLE notifications (
     post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
     source_event_id TEXT NOT NULL,
     read_at TIMESTAMPTZ(3),
+    metadata JSONB,
     created_at TIMESTAMPTZ(3) NOT NULL DEFAULT clock_timestamp(),
 
     -- Constraints
     CONSTRAINT uq_notifications_source_event UNIQUE (source_event_id),
     CONSTRAINT ck_notifications_valid_type CHECK (
-        event_type IN ('like', 'reply', 'repost', 'follow', 'follow_request')
+        event_type IN ('like', 'reply', 'repost', 'follow', 'follow_request', 'NEW_LOGIN', 'new_login')
     ),
     -- like, reply, and repost MUST reference a post; follow MUST NOT reference a post
     CONSTRAINT ck_notifications_post_target CHECK (
         (event_type IN ('like', 'reply', 'repost') AND post_id IS NOT NULL) OR
-        (event_type IN ('follow', 'follow_request') AND post_id IS NULL)
+        (event_type IN ('follow', 'follow_request', 'NEW_LOGIN', 'new_login') AND post_id IS NULL)
     ),
     -- Actors should not receive notifications for actions on their own content
     CONSTRAINT ck_notifications_no_self_notification CHECK (
-        recipient_id <> actor_id
+        recipient_id <> actor_id OR event_type IN ('NEW_LOGIN', 'new_login')
     )
 );
 
