@@ -889,7 +889,7 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
             )}
 
             {/* Active Logged-in Devices Section */}
-            {currentUser && sessions.length > 0 && (
+            {currentUser && (
               <div
                 style={{
                   margin: "12px 16px",
@@ -910,7 +910,7 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
                     justifyContent: "space-between",
                   }}
                 >
-                  <span>💻 Logged-in Devices ({sessions.length})</span>
+                  <span>💻 Logged-in Devices ({sessions.length || 1})</span>
                 </div>
                 <div
                   style={{
@@ -921,9 +921,64 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
                     overflowY: "auto",
                   }}
                 >
-                  {sessions.map((sess) => (
+                  {sessions.length > 0 ? (
+                    sessions.map((sess) => (
+                      <div
+                        key={sess.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          background: "#fff",
+                          padding: "6px 10px",
+                          borderRadius: "6px",
+                          border: "1px solid #f3f4f6",
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 500, color: "#111827" }}>
+                            {sess.browser} on {sess.os}
+                            {sess.isCurrent && (
+                              <span
+                                style={{
+                                  marginLeft: "6px",
+                                  fontSize: "11px",
+                                  background: "#dcfce7",
+                                  color: "#15803d",
+                                  padding: "1px 6px",
+                                  borderRadius: "4px",
+                                }}
+                              >
+                                This device
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                            {sess.deviceType} • {new Date(sess.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                          </div>
+                        </div>
+                        {!sess.isCurrent && (
+                          <button
+                            type="button"
+                            onClick={() => handleRevokeSession(sess.id)}
+                            style={{
+                              background: "none",
+                              border: "1px solid #ef4444",
+                              color: "#ef4444",
+                              borderRadius: "4px",
+                              padding: "2px 8px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Log out
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  ) : (
                     <div
-                      key={sess.id}
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
@@ -936,46 +991,26 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
                     >
                       <div>
                         <div style={{ fontWeight: 500, color: "#111827" }}>
-                          {sess.browser} on {sess.os}
-                          {sess.isCurrent && (
-                            <span
-                              style={{
-                                marginLeft: "6px",
-                                fontSize: "11px",
-                                background: "#dcfce7",
-                                color: "#15803d",
-                                padding: "1px 6px",
-                                borderRadius: "4px",
-                              }}
-                            >
-                              This device
-                            </span>
-                          )}
+                          Current Session
+                          <span
+                            style={{
+                              marginLeft: "6px",
+                              fontSize: "11px",
+                              background: "#dcfce7",
+                              color: "#15803d",
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            Active device
+                          </span>
                         </div>
                         <div style={{ fontSize: "11px", color: "#6b7280" }}>
-                          {sess.deviceType} • {new Date(sess.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                          Connected
                         </div>
                       </div>
-                      {!sess.isCurrent && (
-                        <button
-                          type="button"
-                          onClick={() => handleRevokeSession(sess.id)}
-                          style={{
-                            background: "none",
-                            border: "1px solid #ef4444",
-                            color: "#ef4444",
-                            borderRadius: "4px",
-                            padding: "2px 8px",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
-                        >
-                          Log out
-                        </button>
-                      )}
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}
