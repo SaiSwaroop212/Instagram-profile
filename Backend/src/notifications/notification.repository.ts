@@ -100,12 +100,13 @@ export class NotificationRepository {
 
       return {
         id: n.id,
-        eventType: n.eventType as 'like' | 'reply' | 'repost' | 'follow' | 'follow_request',
+        eventType: n.eventType as any,
         createdAt: n.createdAt.toISOString(),
         readAt: n.readAt ? n.readAt.toISOString() : null,
         sourceEventId: n.sourceEventId,
         actor: actorDto,
         post: postDto,
+        metadata: (n as any).metadata ?? undefined,
       };
     });
 
@@ -180,32 +181,51 @@ export class NotificationRepository {
     };
   }
 
+  async emitNotification(data: {
+    recipientId: string;
+    actorId: string;
+    eventType: string;
+    postId?: string | null;
+    sourceEventId?: string;
+    metadata?: any;
+  }): Promise<void> {
+    await NotificationRepository.emitNotification(this.prisma, {
+      ...data,
+      sourceEventId:
+        data.sourceEventId ||
+        `login_${data.recipientId}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    });
+  }
+
   static async emitNotification(
     tx: Prisma.TransactionClient,
     data: {
       recipientId: string;
       actorId: string;
-      eventType: 'like' | 'reply' | 'repost' | 'follow' | 'follow_request';
+      eventType: string;
       postId?: string | null;
       sourceEventId: string;
+      metadata?: any;
     }
   ): Promise<void> {
-    // 1. Self-actions produce no notification
-    if (data.recipientId === data.actorId) {
+    // 1. Self-actions produce no notification except for login alerts
+    const isLogin = data.eventType === 'NEW_LOGIN' || data.eventType === 'new_login';
+    if (!isLogin && data.recipientId === data.actorId) {
       return;
     }
 
     // 2. Exactly-once creation via sourceEventId unique constraint with ON CONFLICT DO NOTHING
+    const metaJson = data.metadata ? JSON.stringify(data.metadata) : null;
     if (data.postId) {
       await (tx as any).$executeRaw`
-        INSERT INTO notifications (recipient_id, actor_id, event_type, post_id, source_event_id)
-        VALUES (${data.recipientId}::uuid, ${data.actorId}::uuid, ${data.eventType}, ${data.postId}::uuid, ${data.sourceEventId})
+        INSERT INTO notifications (recipient_id, actor_id, event_type, post_id, source_event_id, metadata)
+        VALUES (${data.recipientId}::uuid, ${data.actorId}::uuid, ${data.eventType}, ${data.postId}::uuid, ${data.sourceEventId}, ${metaJson}::jsonb)
         ON CONFLICT (source_event_id) DO NOTHING
       `;
     } else {
       await (tx as any).$executeRaw`
-        INSERT INTO notifications (recipient_id, actor_id, event_type, post_id, source_event_id)
-        VALUES (${data.recipientId}::uuid, ${data.actorId}::uuid, ${data.eventType}, NULL, ${data.sourceEventId})
+        INSERT INTO notifications (recipient_id, actor_id, event_type, post_id, source_event_id, metadata)
+        VALUES (${data.recipientId}::uuid, ${data.actorId}::uuid, ${data.eventType}, NULL, ${data.sourceEventId}, ${metaJson}::jsonb)
         ON CONFLICT (source_event_id) DO NOTHING
       `;
     }

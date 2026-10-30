@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Req,
   Res,
@@ -11,6 +13,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
+import { AuthUtil } from './auth.util.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { Public } from './public.decorator.js';
@@ -28,9 +31,11 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   async register(
     @Body() body: RegisterDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.register(body);
+    const deviceInfo = AuthUtil.extractDeviceInfo(req, body);
+    const result = await this.authService.register(body, deviceInfo);
 
     res.cookie('session', result.token, {
       httpOnly: true,
@@ -47,9 +52,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() body: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.login(body);
+    const deviceInfo = AuthUtil.extractDeviceInfo(req, body);
+    const result = await this.authService.login(body, deviceInfo);
 
     res.cookie('session', result.token, {
       httpOnly: true,
@@ -91,6 +98,26 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   getMe(@CurrentUser() user: SafeUser) {
     return { user };
+  }
+
+  @Get('sessions')
+  @HttpCode(HttpStatus.OK)
+  async getSessions(
+    @CurrentUser('id') userId: string,
+    @Req() req: Request,
+  ) {
+    const currentSessionId = (req as any).sessionId;
+    return this.authService.getActiveSessions(userId, currentSessionId);
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(HttpStatus.OK)
+  async revokeSession(
+    @CurrentUser('id') userId: string,
+    @Param('id') sessionId: string,
+  ) {
+    await this.authService.revokeUserSessionById(userId, sessionId);
+    return { success: true };
   }
 
   private extractTokenFromRequest(req: Request): string | null {

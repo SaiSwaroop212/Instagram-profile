@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthSession, User } from '@prisma/client';
+import type { DeviceInfo } from './auth.util.js';
 
 export interface CreateUserData {
   handle: string;
@@ -44,13 +45,64 @@ export class AuthRepository {
     });
   }
 
-  async createSession(userId: string, tokenHash: string, expiresAt: Date): Promise<AuthSession> {
+  async createSession(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+    deviceInfo?: DeviceInfo
+  ): Promise<AuthSession> {
     return this.prisma.authSession.create({
       data: {
         userId,
         tokenHash,
         expiresAt,
+        deviceType: deviceInfo?.deviceType ?? null,
+        browser: deviceInfo?.browser ?? null,
+        os: deviceInfo?.os ?? null,
+        ipAddress: deviceInfo?.ipAddress ?? null,
+        userAgent: deviceInfo?.userAgent ?? null,
       },
+    });
+  }
+
+  async isDeviceRecognised(userId: string, deviceInfo?: DeviceInfo): Promise<boolean> {
+    if (!deviceInfo) return true;
+    const matching = await this.prisma.authSession.findFirst({
+      where: {
+        userId,
+        deviceType: deviceInfo.deviceType,
+        browser: deviceInfo.browser,
+        os: deviceInfo.os,
+      },
+    });
+    return Boolean(matching);
+  }
+
+  async findActiveSessionsByUserId(userId: string): Promise<AuthSession[]> {
+    return this.prisma.authSession.findMany({
+      where: {
+        userId,
+        revokedAt: null,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async findSessionById(id: string): Promise<AuthSession | null> {
+    return this.prisma.authSession.findUnique({
+      where: { id },
+    });
+  }
+
+  async revokeSessionById(sessionId: string): Promise<void> {
+    await this.prisma.authSession.updateMany({
+      where: { id: sessionId, revokedAt: null },
+      data: { revokedAt: new Date() },
     });
   }
 

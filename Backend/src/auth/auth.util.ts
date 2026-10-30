@@ -13,6 +13,14 @@ const scryptAsync = promisify(scrypt);
 // Pre-computed to match the scrypt format: scrypt:<salt>:<hash>
 const DUMMY_SALT = '00000000000000000000000000000000';
 
+export interface DeviceInfo {
+  deviceType: string;
+  browser: string;
+  os: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+}
+
 export class AuthUtil {
   /**
    * Hashes a plain-text password using scrypt with a cryptographically secure random salt.
@@ -79,5 +87,91 @@ export class AuthUtil {
       normalized = normalized.slice(1);
     }
     return normalized;
+  }
+  /**
+   * Extracts or detects client device information from headers, body, or User-Agent string.
+   */
+  static extractDeviceInfo(req?: any, body?: any): DeviceInfo {
+    const rawHeaders = req?.headers || {};
+    const ua = (rawHeaders['user-agent'] || '').trim();
+
+    // 1. Explicit headers or body override defaults
+    let deviceType =
+      rawHeaders['x-device-type'] ||
+      body?.deviceType ||
+      null;
+
+    let browser =
+      rawHeaders['x-device-browser'] ||
+      body?.browser ||
+      null;
+
+    let os =
+      rawHeaders['x-device-os'] ||
+      body?.os ||
+      null;
+
+    // 2. Parse from User-Agent if not explicitly specified
+    if (!deviceType && ua) {
+      if (/ipad|tablet/i.test(ua)) {
+        deviceType = 'tablet';
+      } else if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) {
+        deviceType = 'mobile';
+      } else if (/windows|macintosh|linux|cros|x11/i.test(ua)) {
+        deviceType = 'desktop';
+      } else {
+        deviceType = 'desktop';
+      }
+    }
+
+    if (!browser && ua) {
+      if (/edg/i.test(ua)) {
+        browser = 'Edge';
+      } else if (/opr|opera/i.test(ua)) {
+        browser = 'Opera';
+      } else if (/chrome|crios/i.test(ua)) {
+        browser = 'Chrome';
+      } else if (/firefox|fxios/i.test(ua)) {
+        browser = 'Firefox';
+      } else if (/safari/i.test(ua)) {
+        browser = 'Safari';
+      } else if (/msie|trident/i.test(ua)) {
+        browser = 'Internet Explorer';
+      } else {
+        browser = 'Other';
+      }
+    }
+
+    if (!os && ua) {
+      if (/windows nt 10/i.test(ua)) {
+        os = 'Windows 10/11';
+      } else if (/windows/i.test(ua)) {
+        os = 'Windows';
+      } else if (/iphone|ipad|ipod/i.test(ua)) {
+        os = 'iOS';
+      } else if (/mac os x|macintosh/i.test(ua)) {
+        os = 'macOS';
+      } else if (/android/i.test(ua)) {
+        os = 'Android';
+      } else if (/linux/i.test(ua)) {
+        os = 'Linux';
+      } else {
+        os = 'Other';
+      }
+    }
+
+    const ipAddress =
+      (rawHeaders['x-forwarded-for'] as string)?.split(',')[0].trim() ||
+      req?.ip ||
+      req?.socket?.remoteAddress ||
+      null;
+
+    return {
+      deviceType: String(deviceType || 'desktop'),
+      browser: String(browser || 'unknown'),
+      os: String(os || 'unknown'),
+      ipAddress: ipAddress ? String(ipAddress) : null,
+      userAgent: ua || null,
+    };
   }
 }

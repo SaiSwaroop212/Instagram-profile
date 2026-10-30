@@ -125,6 +125,7 @@ model Notification {
   sourceEventId String    @unique @map("source_event_id")
   readAt        DateTime? @map("read_at") @db.Timestamptz(3)
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  metadata      Json?     @map("metadata")
 
   // Relations
   recipient User  @relation("RecipientNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
@@ -138,7 +139,12 @@ model Notification {
 model AuthSession {
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String    @map("user_id") @db.Uuid
-  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(64)
+  deviceType String?   @default("unknown") @map("device_type") @db.VarChar(50)
+  browser    String?   @default("unknown") @map("browser") @db.VarChar(50)
+  os         String?   @default("unknown") @map("os") @db.VarChar(50)
+  ipAddress  String?   @map("ip_address") @db.VarChar(45)
+  userAgent  String?   @map("user_agent") @db.Text
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
