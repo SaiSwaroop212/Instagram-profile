@@ -1,14 +1,18 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
+  NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthRepository, type SafeUser } from './auth.repository.js';
-import { AuthUtil } from './auth.util.js';
+import { AuthUtil, type DeviceInfo } from './auth.util.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { Prisma } from '@prisma/client';
+import { NotificationRepository } from '../notifications/notification.repository.js';
 
 export interface AuthResponse {
   token: string;
@@ -20,14 +24,17 @@ export class AuthService {
   // Session lifespan: 7 days
   private readonly sessionDurationMs = 7 * 24 * 60 * 60 * 1000;
 
-  constructor(private readonly authRepository: AuthRepository) {}
+  constructor(
+    private readonly authRepository: AuthRepository,
+    @Optional() private readonly notificationRepository?: NotificationRepository
+  ) {}
 
   private sanitizeUser(user: any): SafeUser {
     const { passwordHash: _passwordHash, ...safe } = user;
     return safe as SafeUser;
   }
 
-  async register(dto: RegisterDto): Promise<AuthResponse> {
+  async register(dto: RegisterDto, deviceInfo?: DeviceInfo): Promise<AuthResponse> {
     if (!dto || typeof dto !== 'object') {
       throw new BadRequestException('Request body is required');
     }
@@ -69,7 +76,7 @@ export class AuthService {
         isPrivate: Boolean(dto.isPrivate),
       });
 
-      const { token } = await this.createSession(user.id);
+      const { token } = await this.createSession(user.id, deviceInfo);
 
       return {
         token,
@@ -83,7 +90,7 @@ export class AuthService {
     }
   }
 
-  async login(dto: LoginDto): Promise<AuthResponse> {
+  async login(dto: LoginDto, deviceInfo?: DeviceInfo): Promise<AuthResponse> {
     if (!dto || !dto.handle || !dto.password) {
       throw new UnauthorizedException('Invalid handle or password');
     }
@@ -102,7 +109,26 @@ export class AuthService {
       throw new UnauthorizedException('Invalid handle or password');
     }
 
-    const { token } = await this.createSession(user.id);
+    const isRecognised = await this.authRepository.isDeviceRecognised(
+      user.id,
+      deviceInfo,
+    );
+    if (!isRecognised && this.notificationRepository) {
+      const nowIso = new Date().toISOString();
+      await this.notificationRepository.emitNotification({
+        recipientId: user.id,
+        actorId: user.id,
+        eventType: 'NEW_LOGIN',
+        metadata: {
+          deviceType: deviceInfo?.deviceType || 'unknown',
+          browser: deviceInfo?.browser || 'unknown',
+          os: deviceInfo?.os || 'unknown',
+          loginTime: nowIso,
+        },
+      });
+    }
+
+    const { token } = await this.createSession(user.id, deviceInfo);
 
     return {
       token,
@@ -110,12 +136,12 @@ export class AuthService {
     };
   }
 
-  async createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
+  async createSession(userId: string, deviceInfo?: DeviceInfo): Promise<{ token: string; expiresAt: Date }> {
     const rawToken = AuthUtil.generateSessionToken();
     const tokenHash = AuthUtil.hashSessionToken(rawToken);
     const expiresAt = new Date(Date.now() + this.sessionDurationMs);
 
-    await this.authRepository.createSession(userId, tokenHash, expiresAt);
+    await this.authRepository.createSession(userId, tokenHash, expiresAt, deviceInfo);
 
     return { token: rawToken, expiresAt };
   }
@@ -171,5 +197,39 @@ export class AuthService {
   async getTestUser(userId: string): Promise<SafeUser | null> {
     const user = await this.authRepository.findUserById(userId);
     return user ? this.sanitizeUser(user) : null;
+  }
+
+  async getActiveSessions(userId: string, currentSessionId?: string) {
+    const rawSessions =
+      await this.authRepository.findActiveSessionsByUserId(userId);
+    const sessions = rawSessions.map((s) => ({
+      id: s.id,
+      deviceType: s.deviceType || 'unknown',
+      browser: s.browser || 'unknown',
+      os: s.os || 'unknown',
+      ipAddress: s.ipAddress || null,
+      createdAt: s.createdAt,
+      lastSeenAt: s.createdAt,
+      isCurrent: currentSessionId ? s.id === currentSessionId : false,
+    }));
+    return {
+      sessions,
+      items: sessions,
+      total: sessions.length,
+    };
+  }
+
+  async revokeUserSessionById(userId: string, sessionId: string) {
+    const session = await this.authRepository.findSessionById(sessionId);
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+    if (session.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to revoke this session',
+      );
+    }
+    await this.authRepository.revokeSessionById(sessionId);
+    return { success: true, message: 'Session revoked successfully' };
   }
 }

@@ -15,6 +15,8 @@ This document provides the authoritative authorization and access control matrix
 | `POST` | `/auth/login` | `AuthController` | No (`@Public`) | `200 OK` | `200 OK` | `200 OK` | `200 OK` | **Yes** | Stateful session creation |
 | `POST` | `/auth/logout` | `AuthController` | Yes (`AuthGuard`) | `401 Unauthorized` | `200 OK` | `200 OK` | `200 OK` | **Yes** | Revokes current session |
 | `POST` | `/auth/logout-all` | `AuthController` | Yes (`AuthGuard`) | `401 Unauthorized` | `200 OK` | `200 OK` | `200 OK` | **Yes** | Revokes all user sessions |
+| `GET` | `/auth/sessions` | `AuthController` | Yes (`AuthGuard`) | `401 Unauthorized` | `200 OK` | `401 / N/A` | `401 / N/A` | No | Active login sessions list |
+| `DELETE` | `/auth/sessions/:id` | `AuthController` | Yes (`AuthGuard`) | `401 Unauthorized` | `200 OK` | `403 Forbidden` | `403 Forbidden` | **Yes** | Revoke specific session |
 | `GET` | `/auth/me` | `AuthController` | Yes (`AuthGuard`) | `401 Unauthorized` | `200 OK` | `200 OK` | `200 OK` | No | Current session identity profile |
 | `GET` | `/users/:id` | `UserController` | Optional (`@Public`) | `200 OK` | `200 OK` | `200 OK` | `200 OK` | No | Public profile & relationship state |
 | `PATCH` | `/users/me` | `UserController` | Yes (`AuthGuard`) | `401 Unauthorized` | `200 OK` | `403 / N/A` | `403 / N/A` | **Yes** | Owner profile update |
@@ -49,8 +51,8 @@ This document provides the authoritative authorization and access control matrix
 
 ## Mutation Invariant Proof
 
-* Total Mutations Identified: **17 endpoints**
+* Total Mutations Identified: **18 endpoints**
 * Unclassified Mutations: **0**
 * Unauthenticated Mutations: **2** (`POST /auth/register`, `POST /auth/login` — public by design)
-* Guarded Mutations: **15** (all protected by `AuthGuard`)
+* Guarded Mutations: **16** (all protected by `AuthGuard`)
 * Authorization Enforced: 100% of guarded mutations enforce owner/recipient identity checks or state transition validation.

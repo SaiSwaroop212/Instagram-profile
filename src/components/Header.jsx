@@ -987,7 +987,10 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
                     <button
                       type="button"
                       className="link-btn"
-                      onClick={() => setAuthMode("register")}
+                      onClick={() => {
+                        setAuthMode("register");
+                        setAuthError("");
+                      }}
                     >
                       Register
                     </button>
@@ -998,7 +1001,10 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
                     <button
                       type="button"
                       className="link-btn"
-                      onClick={() => setAuthMode("login")}
+                      onClick={() => {
+                        setAuthMode("login");
+                        setAuthError("");
+                      }}
                     >
                       Sign in
                     </button>

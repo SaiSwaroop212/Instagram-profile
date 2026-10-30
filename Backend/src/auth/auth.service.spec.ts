@@ -2,12 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AuthService } from './auth.service.js';
 import { AuthRepository } from './auth.repository.js';
 import { AuthUtil } from './auth.util.js';
-import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { NotificationRepository } from '../notifications/notification.repository.js';
 import { Prisma } from '@prisma/client';
 
 describe('AuthService (Unit)', () => {
   let authService: AuthService;
   let mockAuthRepo: any;
+  let mockNotificationRepo: any;
 
   beforeEach(() => {
     mockAuthRepo = {
@@ -18,8 +20,18 @@ describe('AuthService (Unit)', () => {
       findSessionWithUser: vi.fn(),
       revokeSession: vi.fn(),
       revokeAllUserSessions: vi.fn(),
+      isDeviceRecognised: vi.fn().mockResolvedValue(true),
+      findActiveSessionsByUserId: vi.fn(),
+      findSessionById: vi.fn(),
+      revokeSessionById: vi.fn(),
     };
-    authService = new AuthService(mockAuthRepo as unknown as AuthRepository);
+    mockNotificationRepo = {
+      emitNotification: vi.fn().mockResolvedValue({ id: 'notif-1' }),
+    };
+    authService = new AuthService(
+      mockAuthRepo as unknown as AuthRepository,
+      mockNotificationRepo as unknown as NotificationRepository,
+    );
   });
 
   describe('AuthUtil', () => {
@@ -212,6 +224,137 @@ describe('AuthService (Unit)', () => {
     it('should revoke all user sessions on logoutAll', async () => {
       await authService.logoutAll('u-123');
       expect(mockAuthRepo.revokeAllUserSessions).toHaveBeenCalledWith('u-123');
+    });
+  });
+
+  describe('new-device login notifications', () => {
+    it('should emit NEW_LOGIN notification when logging in from a new device', async () => {
+      const password = 'Password123!';
+      const hash = await AuthUtil.hashPassword(password);
+      mockAuthRepo.findUserByHandle.mockResolvedValue({
+        id: 'u-1',
+        handle: 'asha',
+        displayName: 'Asha',
+        passwordHash: hash,
+      });
+      mockAuthRepo.createSession.mockResolvedValue({ id: 's-1' });
+      mockAuthRepo.isDeviceRecognised.mockResolvedValue(false);
+
+      const deviceInfo = {
+        deviceType: 'mobile',
+        browser: 'Safari',
+        os: 'iOS',
+        ipAddress: '127.0.0.1',
+        userAgent: 'iPhone Safari',
+      };
+
+      await authService.login({ handle: 'asha', password }, deviceInfo);
+
+      expect(mockNotificationRepo.emitNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: 'u-1',
+          actorId: 'u-1',
+          eventType: 'NEW_LOGIN',
+          metadata: expect.objectContaining({
+            deviceType: 'mobile',
+            browser: 'Safari',
+            os: 'iOS',
+          }),
+        })
+      );
+    });
+
+    it('should NOT emit NEW_LOGIN notification when device is already recognised', async () => {
+      const password = 'Password123!';
+      const hash = await AuthUtil.hashPassword(password);
+      mockAuthRepo.findUserByHandle.mockResolvedValue({
+        id: 'u-1',
+        handle: 'asha',
+        displayName: 'Asha',
+        passwordHash: hash,
+      });
+      mockAuthRepo.createSession.mockResolvedValue({ id: 's-1' });
+      mockAuthRepo.isDeviceRecognised.mockResolvedValue(true);
+
+      const deviceInfo = {
+        deviceType: 'desktop',
+        browser: 'Chrome',
+        os: 'Windows',
+      };
+
+      await authService.login({ handle: 'asha', password }, deviceInfo);
+
+      expect(mockNotificationRepo.emitNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('active sessions management', () => {
+    it('should return active sessions with sanitized properties and isCurrent flag', async () => {
+      const mockSessions = [
+        {
+          id: 's-1',
+          userId: 'u-1',
+          deviceType: 'desktop',
+          browser: 'Chrome',
+          os: 'Windows',
+          ipAddress: '192.168.1.1',
+          createdAt: new Date('2026-10-30T10:00:00Z'),
+          tokenHash: 'secret-hash-must-not-leak',
+        },
+        {
+          id: 's-2',
+          userId: 'u-1',
+          deviceType: 'mobile',
+          browser: 'Safari',
+          os: 'iOS',
+          ipAddress: null,
+          createdAt: new Date('2026-10-30T11:00:00Z'),
+          tokenHash: 'another-secret-hash',
+        },
+      ];
+      mockAuthRepo.findActiveSessionsByUserId.mockResolvedValue(mockSessions);
+
+      const result = await authService.getActiveSessions('u-1', 's-1');
+
+      expect(result.sessions).toHaveLength(2);
+      expect(result.sessions[0].id).toBe('s-1');
+      expect(result.sessions[0].isCurrent).toBe(true);
+      expect(result.sessions[1].isCurrent).toBe(false);
+      expect((result.sessions[0] as any).tokenHash).toBeUndefined();
+      expect((result.sessions[1] as any).tokenHash).toBeUndefined();
+    });
+
+    it('should revoke a session owned by the user', async () => {
+      mockAuthRepo.findSessionById.mockResolvedValue({
+        id: 's-1',
+        userId: 'u-1',
+      });
+      mockAuthRepo.revokeSessionById.mockResolvedValue({ id: 's-1' });
+
+      const res = await authService.revokeUserSessionById('u-1', 's-1');
+      expect(res.success).toBe(true);
+      expect(mockAuthRepo.revokeSessionById).toHaveBeenCalledWith('s-1');
+    });
+
+    it('should throw ForbiddenException if user attempts to revoke another users session', async () => {
+      mockAuthRepo.findSessionById.mockResolvedValue({
+        id: 's-other',
+        userId: 'u-other',
+      });
+
+      await expect(
+        authService.revokeUserSessionById('u-1', 's-other')
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockAuthRepo.revokeSessionById).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException if session does not exist', async () => {
+      mockAuthRepo.findSessionById.mockResolvedValue(null);
+
+      await expect(
+        authService.revokeUserSessionById('u-1', 's-nonexistent')
+      ).rejects.toThrow(NotFoundException);
+
     });
   });
 });
