@@ -8,6 +8,7 @@ import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { AuthUtil } from '../src/auth/auth.util.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,8 +55,17 @@ async function main() {
     for (const stmt of notifStatements) {
       await prisma.$executeRawUnsafe(stmt);
     }
-    console.log('[OK] Seeded notifications extension.');
+      console.log('[OK] Seeded notifications extension.');
   }
+
+  // Ensure all demo seed accounts (@asha, @dan_dev, @elena_r, etc.) can log in with Password123!
+  const demoHash = await AuthUtil.hashPassword('Password123!');
+  await prisma.user.updateMany({
+    data: {
+      passwordHash: demoHash,
+    },
+  });
+  console.log('[OK] Seeded demo user passwords for quick-switch login.');
 
   const [users, posts, media, likes, follows] = await Promise.all([
     prisma.user.count(),

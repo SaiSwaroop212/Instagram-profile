@@ -420,57 +420,78 @@ export function App() {
         onUserChange={handleUserChange}
       /> 
  
-      <main> 
-        <ProfileHeader
-          postCount={userPostCount || filteredPosts.length}
-          onProfileUpdated={(updated) => {
-            setCurrentUser(updated);
-          }}
-        />
+      <main>
+        {currentUser ? (
+          <>
+            <ProfileHeader
+              postCount={userPostCount}
+              onProfileUpdated={(updated) => {
+                setCurrentUser(updated);
+              }}
+            />
 
-        {/* Instagram Feed Navigation Tabs */}
-        <div className="feed-navigation-tabs">
-          <button
-            type="button"
-            className={`feed-tab-btn ${activeTab === "explore" ? "active" : ""}`}
-            onClick={() => handleTabChange("explore")}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <rect x="3" y="3" width="7" height="7"></rect>
-              <rect x="14" y="3" width="7" height="7"></rect>
-              <rect x="14" y="14" width="7" height="7"></rect>
-              <rect x="3" y="14" width="7" height="7"></rect>
-            </svg>
-            <span>FEED</span>
-          </button>
+            {/* Instagram Feed Switcher Tabs */}
+            <div className="feed-navigation-tabs">
+              <button
+                type="button"
+                className={`feed-tab-btn ${activeTab === "my-posts" ? "active" : ""}`}
+                onClick={() => handleTabChange("my-posts")}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>My Posts ({userPostCount})</span>
+              </button>
 
-          <button
-            type="button"
-            className={`feed-tab-btn ${activeTab === "following" ? "active" : ""}`}
-            onClick={() => handleTabChange("following")}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-              <circle cx="9" cy="7" r="4"></circle>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            <span>FOLLOWING</span>
-          </button>
+              <button
+                type="button"
+                className={`feed-tab-btn ${activeTab === "following" ? "active" : ""}`}
+                onClick={() => handleTabChange("following")}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span>Following Feed</span>
+              </button>
 
-          <button
-            type="button"
-            className={`feed-tab-btn ${activeTab === "my-posts" ? "active" : ""}`}
-            onClick={() => handleTabChange("my-posts")}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span>MY POSTS</span>
-          </button>
-        </div>
-        {/* Empty States for My Posts & Following */}
+              <button
+                type="button"
+                className={`feed-tab-btn ${activeTab === "explore" ? "active" : ""}`}
+                onClick={() => handleTabChange("explore")}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+                </svg>
+                <span>Explore (Default Feed)</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          /* Guest / Default Feed Banner */
+          <div className="guest-feed-banner">
+            <div className="guest-feed-banner-content">
+              <span className="guest-feed-badge">🌐 Default Community Feed</span>
+              <h2>Discover inspiring photos & moments from the community</h2>
+              <p>
+                You are currently viewing the default public feed. Sign in or register to publish your own posts, edit your bio, and build your profile.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="guest-feed-signin-btn"
+              onClick={() => window.dispatchEvent(new CustomEvent("open-auth-modal"))}
+            >
+              Sign In / Register
+            </button>
+          </div>
+        )}
         {currentUser && activeTab === "my-posts" && filteredPosts.length === 0 && !isLoading ? (
           <div className="my-posts-empty-state">
             <div className="my-posts-empty-icon">📷</div>
