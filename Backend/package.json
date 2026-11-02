@@ -23,8 +23,7 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "e2e": "vitest run --config ./vitest.config.e2e.ts",
     "test:all": "vitest run && vitest run --config ./vitest.config.e2e.ts",
-    "db:seed": "prisma db seed",
-    "logins": "npx tsx scripts/check-logins.ts"
+    "db:seed": "prisma db seed"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
