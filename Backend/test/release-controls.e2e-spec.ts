@@ -134,7 +134,7 @@ describe('Security, Compatibility & Release Controls (e2e - JS-P0-07)', () => {
 
       for (const ctrl of controllerList) {
         const ctrlPrefix = (Reflect.getMetadata('path', ctrl) || '').replace(/^\/?/, '/');
-        const proto = ctrl.prototype;
+        const proto: any = ctrl.prototype;
         for (const methodName of Object.getOwnPropertyNames(proto)) {
           if (methodName === 'constructor') continue;
           const methodFn = proto[methodName];

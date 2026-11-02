@@ -17,8 +17,8 @@ export interface DeviceInfo {
   deviceType: string;
   browser: string;
   os: string;
-  ipAddress: string | null;
-  userAgent: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 export class AuthUtil {
