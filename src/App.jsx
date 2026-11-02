@@ -13,6 +13,7 @@ import Header from "./components/Header";
 import PostGrid from "./components/PostGrid"; 
 import Carousel from "./components/Carousel"; 
 import ProfileHeader from "./components/ProfileHeader";
+import SuggestionsSidebar from "./components/SuggestionsSidebar";
 import { 
   fetchPosts, 
   fetchUserPosts, 
@@ -492,7 +493,9 @@ export function App() {
             </button>
           </div>
         )}
-        {currentUser && activeTab === "my-posts" && filteredPosts.length === 0 && !isLoading ? (
+        <div className="main-content-layout">
+          <div className={`main-feed-column ${activeTab === "my-posts" ? "full-width" : ""}`}>
+            {currentUser && activeTab === "my-posts" && filteredPosts.length === 0 && !isLoading ? (
           <div className="my-posts-empty-state">
             <div className="my-posts-empty-icon">📷</div>
             <h3>No Posts Yet</h3>
@@ -529,6 +532,15 @@ export function App() {
             onRetry={() => loadPosts(null)} 
           /> 
         )}
+          </div>
+
+          {/* Side Follow Suggestions */}
+          {activeTab !== "my-posts" && (
+            <div className="sidebar-suggestions-column">
+              <SuggestionsSidebar onUserSwitch={() => window.dispatchEvent(new CustomEvent("open-auth-modal"))} />
+            </div>
+          )}
+        </div>
       </main> 
  
       {carouselPosts && ( 
