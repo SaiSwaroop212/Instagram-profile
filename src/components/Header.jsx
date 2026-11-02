@@ -937,7 +937,7 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
                       >
                         <div>
                           <div style={{ fontWeight: 500, color: "#111827" }}>
-                            {sess.browser} on {sess.os}
+                            {(sess.browser && sess.browser !== 'unknown') ? `${sess.browser} on ${sess.os}` : (sess.isCurrent ? 'Current Web Browser' : 'Previous Web Session')}
                             {sess.isCurrent && (
                               <span
                                 style={{
@@ -954,7 +954,7 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
                             )}
                           </div>
                           <div style={{ fontSize: "11px", color: "#6b7280" }}>
-                            {sess.deviceType} • {new Date(sess.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                            {(sess.deviceType && sess.deviceType !== 'unknown') ? sess.deviceType : (sess.isCurrent ? 'desktop' : 'device')} • {new Date(sess.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
                           </div>
                         </div>
                         {!sess.isCurrent && (
