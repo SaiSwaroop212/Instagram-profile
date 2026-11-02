@@ -76,7 +76,8 @@ export class AuthService {
         isPrivate: Boolean(dto.isPrivate),
       });
 
-      const { token } = await this.createSession(user.id, deviceInfo);
+      console.log(`[AUTH] 👤 User @${user.handle} successfully logged in (${deviceInfo?.deviceType || 'desktop'}, ${deviceInfo?.browser || 'browser'} on ${deviceInfo?.os || 'OS'}, IP: ${deviceInfo?.ipAddress || 'unknown'})`);
+    const { token } = await this.createSession(user.id, deviceInfo);
 
       return {
         token,
@@ -115,6 +116,7 @@ export class AuthService {
     );
     if (!isRecognised && this.notificationRepository) {
       const nowIso = new Date().toISOString();
+      console.log(`[SECURITY] 🛡️ New device login detected for @${user.handle}! (${deviceInfo?.deviceType || 'unknown'} / ${deviceInfo?.browser || 'unknown'} on ${deviceInfo?.os || 'unknown'})`);
       await this.notificationRepository.emitNotification({
         recipientId: user.id,
         actorId: user.id,
@@ -128,6 +130,7 @@ export class AuthService {
       });
     }
 
+    console.log(`[AUTH] 👤 User @${user.handle} successfully logged in (${deviceInfo?.deviceType || 'desktop'}, ${deviceInfo?.browser || 'browser'} on ${deviceInfo?.os || 'OS'}, IP: ${deviceInfo?.ipAddress || 'unknown'})`);
     const { token } = await this.createSession(user.id, deviceInfo);
 
     return {
