@@ -494,7 +494,7 @@ export function App() {
           </div>
         )}
         <div className="main-content-layout">
-          <div className={`main-feed-column ${activeTab === "my-posts" ? "full-width" : ""}`}>
+          <div className={`main-feed-column ${!currentUser || activeTab === "my-posts" ? "full-width" : ""}`}>
             {currentUser && activeTab === "my-posts" && filteredPosts.length === 0 && !isLoading ? (
           <div className="my-posts-empty-state">
             <div className="my-posts-empty-icon">📷</div>
@@ -535,7 +535,7 @@ export function App() {
           </div>
 
           {/* Side Follow Suggestions */}
-          {activeTab !== "my-posts" && (
+          {currentUser && activeTab !== "my-posts" && (
             <div className="sidebar-suggestions-column">
               <SuggestionsSidebar onUserSwitch={() => window.dispatchEvent(new CustomEvent("open-auth-modal"))} />
             </div>
