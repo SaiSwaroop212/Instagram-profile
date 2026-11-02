@@ -10,6 +10,7 @@ import {
   Req,
   Res,
   UseGuards,
+  Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
@@ -24,6 +25,7 @@ import { AuthGuard } from './auth.guard.js';
 @UseGuards(AuthGuard)
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
   constructor(private readonly authService: AuthService) { }
 
   @Public()
@@ -71,12 +73,13 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(
+    @CurrentUser() user: SafeUser,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const token = this.extractTokenFromRequest(req);
     if (token) {
-      await this.authService.logout(token);
+      await this.authService.logout(token, user);
     }
 
     res.clearCookie('session', { path: '/' });

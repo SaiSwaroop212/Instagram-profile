@@ -379,10 +379,10 @@ export class PostRepository {
   async deletePost(
     id: string,
     authorId: string
-  ): Promise<{ success: boolean; id: string; message: string }> {
+  ): Promise<{ success: boolean; id: string; message: string; kind?: string; replyToId?: string | null }> {
     const post = await this.prisma.post.findUnique({
       where: { id },
-      select: { id: true, authorId: true, deletedAt: true },
+      select: { id: true, authorId: true, deletedAt: true, kind: true, replyToId: true },
     });
 
     if (!post) {
@@ -399,6 +399,8 @@ export class PostRepository {
         success: true,
         id: post.id,
         message: 'Post already deleted',
+        kind: post.kind,
+        replyToId: post.replyToId,
       };
     }
 
@@ -413,6 +415,8 @@ export class PostRepository {
       success: true,
       id: post.id,
       message: 'Post deleted successfully',
+      kind: post.kind,
+      replyToId: post.replyToId,
     };
   }
 }

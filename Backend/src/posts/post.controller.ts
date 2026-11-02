@@ -14,6 +14,7 @@ import { CreatePostDto } from './create-post.dto.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { Public } from '../auth/public.decorator.js';
+import type { SafeUser } from '../auth/auth.repository.js';
 
 @Controller('posts')
 export class PostController {
@@ -28,37 +29,37 @@ export class PostController {
 
   @UseGuards(AuthGuard)
   @Post()
-  createPost(@CurrentUser('id') actorId: string, @Body() body: CreatePostDto) {
-    return this.postService.createPost(body, actorId);
+  createPost(@CurrentUser() user: SafeUser, @Body() body: CreatePostDto) {
+    return this.postService.createPost(body, user?.id, user?.handle);
   }
 
   @UseGuards(AuthGuard)
   @Post(':id/like')
   @HttpCode(200)
-  likePost(@CurrentUser('id') actorId: string, @Param('id') id: string) {
-    return this.postService.setLike(id, true, actorId);
+  likePost(@CurrentUser() user: SafeUser, @Param('id') id: string) {
+    return this.postService.setLike(id, true, user?.id, user?.handle);
   }
 
   @UseGuards(AuthGuard)
   @Delete(':id/like')
-  unlikePost(@CurrentUser('id') actorId: string, @Param('id') id: string) {
-    return this.postService.setLike(id, false, actorId);
+  unlikePost(@CurrentUser() user: SafeUser, @Param('id') id: string) {
+    return this.postService.setLike(id, false, user?.id, user?.handle);
   }
 
   @UseGuards(AuthGuard)
   @Patch(':id')
   updatePost(
-    @CurrentUser('id') actorId: string,
+    @CurrentUser() user: SafeUser,
     @Param('id') id: string,
     @Body() body: any
   ) {
-    return this.postService.updatePost(id, actorId, body);
+    return this.postService.updatePost(id, user?.id, body);
   }
 
   @UseGuards(AuthGuard)
   @Delete(':id')
   @HttpCode(200)
-  deletePost(@CurrentUser('id') actorId: string, @Param('id') id: string) {
-    return this.postService.deletePost(id, actorId);
+  deletePost(@CurrentUser() user: SafeUser, @Param('id') id: string) {
+    return this.postService.deletePost(id, user?.id, user?.handle);
   }
 }
