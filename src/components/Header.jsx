@@ -954,7 +954,7 @@ export function Header({ searchTerm, onSearchChange, onUserChange, onPostCreated
                             )}
                           </div>
                           <div style={{ fontSize: "11px", color: "#6b7280" }}>
-                            {(sess.deviceType && sess.deviceType !== 'unknown') ? sess.deviceType : (sess.isCurrent ? 'desktop' : 'device')} • {new Date(sess.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                            {(sess.deviceType && sess.deviceType !== 'unknown') ? sess.deviceType : (sess.isCurrent ? 'desktop' : 'device')} • {new Date(sess.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}, {new Date(sess.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                           </div>
                         </div>
                         {!sess.isCurrent && (
