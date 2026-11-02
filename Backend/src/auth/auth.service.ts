@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { Prisma } from '@prisma/client';
 import { NotificationRepository } from '../notifications/notification.repository.js';
+import { AppLogger } from '../common/app-logger.js';
 
 export interface AuthResponse {
   token: string;
@@ -77,12 +78,20 @@ export class AuthService {
       });
 
       const { token } = await this.createSession(user.id, deviceInfo);
+      const safeUser = this.sanitizeUser(user);
+
+      AppLogger.logActivity({
+        event: 'USER_REGISTERED',
+        user: safeUser.handle,
+        userId: safeUser.id,
+      });
 
       return {
         token,
-        user: this.sanitizeUser(user),
+        user: safeUser,
       };
     } catch (err: any) {
+      AppLogger.logError('USER_REGISTERED', err, { user: normalizedHandle });
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         throw new ConflictException('Handle is already taken');
       }
@@ -98,42 +107,57 @@ export class AuthService {
     const normalizedHandle = AuthUtil.normalizeHandle(dto.handle);
     const user = await this.authRepository.findUserByHandle(normalizedHandle);
 
-    if (!user || user.deactivatedAt) {
-      // Execute dummy constant-time verification to defeat timing enumeration attacks
-      await AuthUtil.verifyPassword(dto.password, '');
-      throw new UnauthorizedException('Invalid handle or password');
-    }
+    try {
+      if (!user || user.deactivatedAt) {
+        // Execute dummy constant-time verification to defeat timing enumeration attacks
+        await AuthUtil.verifyPassword(dto.password, '');
+        throw new UnauthorizedException('Invalid handle or password');
+      }
 
-    const isValidPassword = await AuthUtil.verifyPassword(dto.password, user.passwordHash);
-    if (!isValidPassword) {
-      throw new UnauthorizedException('Invalid handle or password');
-    }
+      const isValidPassword = await AuthUtil.verifyPassword(dto.password, user.passwordHash);
+      if (!isValidPassword) {
+        throw new UnauthorizedException('Invalid handle or password');
+      }
 
-    const isRecognised = await this.authRepository.isDeviceRecognised(
-      user.id,
-      deviceInfo,
-    );
-    if (!isRecognised && this.notificationRepository) {
-      const nowIso = new Date().toISOString();
-      await this.notificationRepository.emitNotification({
-        recipientId: user.id,
-        actorId: user.id,
-        eventType: 'NEW_LOGIN',
-        metadata: {
-          deviceType: deviceInfo?.deviceType || 'unknown',
-          browser: deviceInfo?.browser || 'unknown',
-          os: deviceInfo?.os || 'unknown',
-          loginTime: nowIso,
-        },
+      const isRecognised = await this.authRepository.isDeviceRecognised(
+        user.id,
+        deviceInfo,
+      );
+      if (!isRecognised && this.notificationRepository) {
+        const nowIso = new Date().toISOString();
+        await this.notificationRepository.emitNotification({
+          recipientId: user.id,
+          actorId: user.id,
+          eventType: 'NEW_LOGIN',
+          metadata: {
+            deviceType: deviceInfo?.deviceType || 'unknown',
+            browser: deviceInfo?.browser || 'unknown',
+            os: deviceInfo?.os || 'unknown',
+            loginTime: nowIso,
+          },
+        });
+      }
+
+      const { token } = await this.createSession(user.id, deviceInfo);
+      const safeUser = this.sanitizeUser(user);
+
+      AppLogger.logActivity({
+        event: 'USER_LOGIN',
+        user: safeUser.handle,
+        userId: safeUser.id,
       });
+
+      return {
+        token,
+        user: safeUser,
+      };
+    } catch (err: any) {
+      AppLogger.logError('USER_LOGIN', err, {
+        user: normalizedHandle,
+        userId: user ? user.id : undefined,
+      });
+      throw err;
     }
-
-    const { token } = await this.createSession(user.id, deviceInfo);
-
-    return {
-      token,
-      user: this.sanitizeUser(user),
-    };
   }
 
   async createSession(userId: string, deviceInfo?: DeviceInfo): Promise<{ token: string; expiresAt: Date }> {
@@ -176,14 +200,51 @@ export class AuthService {
     };
   }
 
-  async logout(rawToken: string): Promise<void> {
+  async logout(rawToken: string, user?: SafeUser): Promise<void> {
     if (!rawToken) return;
-    const tokenHash = AuthUtil.hashSessionToken(rawToken.trim());
-    await this.authRepository.revokeSession(tokenHash);
+    try {
+      const tokenHash = AuthUtil.hashSessionToken(rawToken.trim());
+      let currentUser = user;
+      if (!currentUser) {
+        const sessionWithUser = await this.authRepository.findSessionWithUser(tokenHash);
+        if (sessionWithUser) {
+          currentUser = this.sanitizeUser(sessionWithUser.user);
+        }
+      }
+
+      await this.authRepository.revokeSession(tokenHash);
+
+      if (currentUser) {
+        AppLogger.logActivity({
+          event: 'USER_LOGOUT',
+          user: currentUser.handle,
+          userId: currentUser.id,
+        });
+      }
+    } catch (err: any) {
+      AppLogger.logError('USER_LOGOUT', err, {
+        user: user?.handle,
+        userId: user?.id,
+      });
+      throw err;
+    }
   }
 
   async logoutAll(userId: string): Promise<void> {
-    await this.authRepository.revokeAllUserSessions(userId);
+    try {
+      const user = await this.authRepository.findUserById(userId);
+      await this.authRepository.revokeAllUserSessions(userId);
+      if (user) {
+        AppLogger.logActivity({
+          event: 'USER_LOGOUT',
+          user: user.handle,
+          userId: user.id,
+        });
+      }
+    } catch (err: any) {
+      AppLogger.logError('USER_LOGOUT', err, { userId });
+      throw err;
+    }
   }
 
   async getMe(userId: string): Promise<{ user: SafeUser }> {
