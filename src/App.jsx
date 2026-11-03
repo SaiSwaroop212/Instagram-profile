@@ -369,6 +369,10 @@ export function App() {
  
   // Per-post comment add 
   const handleAddComment = useCallback(async (postId, commentText) => { 
+    if (!getStoredUser()) {
+      window.dispatchEvent(new CustomEvent("open-auth-modal"));
+      return;
+    } 
     setComments((prev) => ({ 
       ...prev, 
       [postId]: [...(prev[postId] || []), commentText], 

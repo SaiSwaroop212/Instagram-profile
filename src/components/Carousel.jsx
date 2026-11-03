@@ -273,6 +273,11 @@ export function Carousel({
   // ONE shared Like for the whole carousel
   const handleLike = async (e) => {
     e.stopPropagation();
+    const storedUser = getStoredUser();
+    if (!storedUser) {
+      window.dispatchEvent(new CustomEvent("open-auth-modal"));
+      return;
+    }
     const nextLiked = !isLikedState;
     const nextCount = nextLiked ? likesCount + 1 : Math.max(0, likesCount - 1);
 
@@ -775,7 +780,7 @@ export function Carousel({
           <CommentBox
             inputRef={commentInputRef}
             onAddComment={(text) =>
-              onAddComment &&
+              !getStoredUser() ? window.dispatchEvent(new CustomEvent("open-auth-modal")) : onAddComment &&
               onAddComment(
                 postDetails.id,
                 text
