@@ -17,6 +17,9 @@
     "test:all": "npm --prefix Backend run test:all",
     "studio": "npm --prefix Backend run studio",
     "prisma:studio": "npm --prefix Backend run studio",
+    "use:cloud": "npm --prefix Backend run use:cloud",
+    "use:local": "npm --prefix Backend run use:local",
+    "db:status": "npm --prefix Backend run db:status",
     "all": "concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm run start:dev\" \"npm run dev\""
   },
   "dependencies": {
