@@ -15,6 +15,8 @@
     "test:e2e": "npm --prefix Backend run test:e2e",
     "e2e": "npm --prefix Backend run test:e2e",
     "test:all": "npm --prefix Backend run test:all",
+    "studio": "npm --prefix Backend run studio",
+    "prisma:studio": "npm --prefix Backend run studio",
     "all": "concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm run start:dev\" \"npm run dev\""
   },
   "dependencies": {
